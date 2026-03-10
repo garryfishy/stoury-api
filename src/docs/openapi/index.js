@@ -45,6 +45,26 @@ const baseTags = [
   },
 ];
 
+const buildServers = () => {
+  const servers = [
+    {
+      url: `http://localhost:${env.PORT}`,
+      description: "Local development server",
+    },
+  ];
+
+  if (env.OPENAPI_SERVER_URL) {
+    servers.push({
+      url: env.OPENAPI_SERVER_URL,
+      description: "Configured public server",
+    });
+  }
+
+  return servers.filter(
+    (server, index, list) => list.findIndex((item) => item.url === server.url) === index
+  );
+};
+
 const buildOpenApiDocument = ({
   extraPaths = {},
   extraSchemas = {},
@@ -59,12 +79,7 @@ const buildOpenApiDocument = ({
     description:
       "MVP travel planner backend covering authentication, profile, preferences, destinations, attractions, trips, itinerary save/fetch, and AI itinerary preview flows.",
   },
-  servers: [
-    {
-      url: `http://localhost:${env.PORT}`,
-      description: "Local development server",
-    },
-  ],
+  servers: buildServers(),
   tags: [...baseTags, ...extraTags],
   components: {
     ...components,

@@ -34,6 +34,10 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   ENABLE_HTTPS_UPGRADE_CSP: z.boolean().default(false),
+  OPENAPI_SERVER_URL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().url().optional()
+  ),
 });
 
 const parsedEnv = envSchema.safeParse({
