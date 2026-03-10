@@ -142,6 +142,7 @@ Core app variables:
 - `JWT_REFRESH_EXPIRES_IN`
 - `AUTH_RATE_LIMIT_WINDOW_MS`
 - `AUTH_RATE_LIMIT_MAX`
+- `ENABLE_HTTPS_UPGRADE_CSP`
 
 Database variables:
 
@@ -167,6 +168,7 @@ Notes:
 - `src/config/env.js` validates the runtime app/auth env contract on boot.
 - `src/database/config/config.js` reads the PostgreSQL variables for Sequelize CLI and DB setup.
 - If `DATABASE_URL`, `DATABASE_URL_TEST`, or `DATABASE_URL_PROD` is present, Sequelize uses that connection string for the matching environment.
+- Leave `ENABLE_HTTPS_UPGRADE_CSP=false` when serving the app directly over plain HTTP on a VPS/IP. Set it to `true` only when the app is behind a real HTTPS terminator such as Nginx, Caddy, or a load balancer.
 
 ## Database workflow
 

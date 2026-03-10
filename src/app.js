@@ -9,13 +9,22 @@ const { notFoundHandler } = require("./middlewares/not-found");
 const { apiRouter } = require("./routes");
 
 const app = express();
+const helmetOptions = env.ENABLE_HTTPS_UPGRADE_CSP
+  ? {}
+  : {
+      contentSecurityPolicy: {
+        directives: {
+          "upgrade-insecure-requests": null,
+        },
+      },
+    };
 
 app.use(
   cors({
     origin: env.CLIENT_ORIGIN === "*" ? true : env.CLIENT_ORIGIN,
   })
 );
-app.use(helmet());
+app.use(helmet(helmetOptions));
 app.use(express.json());
 if (env.NODE_ENV !== "test") {
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
