@@ -15,6 +15,13 @@ const { tripsPaths } = require("./paths/trips");
 const { itinerariesPaths } = require("./paths/itineraries");
 const { aiPlanningPaths } = require("./paths/ai-planning");
 
+const DEFAULT_PUBLIC_OPENAPI_SERVERS = [
+  {
+    url: "https://stoury-api.oceandigital.id/",
+    description: "Ocean Digital hosted server",
+  },
+];
+
 const baseTags = [
   {
     name: "Auth",
@@ -61,6 +68,7 @@ const buildServers = () => {
       url: `http://localhost:${env.PORT}`,
       description: "Local development server",
     },
+    ...DEFAULT_PUBLIC_OPENAPI_SERVERS,
   ];
 
   if (env.OPENAPI_SERVER_URL) {

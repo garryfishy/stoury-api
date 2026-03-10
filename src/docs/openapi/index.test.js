@@ -27,6 +27,13 @@ describe("OpenAPI document", () => {
     expect(document.components.schemas.AiPlanningPreview).toBeDefined();
     expect(document.components.schemas.AdminAttractionEnrichmentResult).toBeDefined();
     expect(document.components.schemas.PaginationMeta).toBeDefined();
+    expect(document.servers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: "https://stoury-api.oceandigital.id/",
+        }),
+      ])
+    );
     expect(document.tags).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Itineraries" }),
