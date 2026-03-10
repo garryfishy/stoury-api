@@ -3,6 +3,8 @@ process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh
 process.env.OPENAPI_SERVER_URL =
   process.env.OPENAPI_SERVER_URL || "http://43.157.208.56:2000";
 
+const request = require("supertest");
+const app = require("../src/app");
 const { buildOpenApiDocument } = require("../src/docs/openapi");
 
 describe("OpenAPI document", () => {
@@ -47,5 +49,14 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/users/me"].patch.description).toContain(
       "Email changes are excluded"
     );
+  });
+
+  test("serves the rendered database relations page", async () => {
+    const response = await request(app).get("/docs/database-relations");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.text).toContain("Stoury API ERD");
+    expect(response.text).toContain("cdn.jsdelivr.net/npm/mermaid");
   });
 });

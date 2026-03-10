@@ -1,5 +1,9 @@
 const swaggerUi = require("swagger-ui-express");
 const env = require("../../config/env");
+const {
+  databaseRelationsDiagram,
+  renderDatabaseRelationsPage,
+} = require("../database-relations");
 const { components } = require("./components");
 const { authPaths } = require("./paths/auth");
 const { usersPaths } = require("./paths/users");
@@ -111,6 +115,28 @@ const buildOpenApiDocument = ({
 
 const setupOpenApi = (app, options = {}) => {
   const document = buildOpenApiDocument(options);
+
+  app.get("/docs/database-relations.mmd", (_req, res) => {
+    res.type("text/plain").send(databaseRelationsDiagram.trimStart());
+  });
+
+  app.get("/docs/database-relations", (_req, res) => {
+    res.set(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        "connect-src 'self' https://cdn.jsdelivr.net",
+        "base-uri 'self'",
+        "frame-ancestors 'self'",
+      ].join("; ")
+    );
+
+    res.type("html").send(renderDatabaseRelationsPage());
+  });
 
   app.get("/docs/openapi.json", (_req, res) => {
     res.json(document);

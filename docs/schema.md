@@ -9,6 +9,8 @@
 
 ## ERD
 
+For a larger visual with table fields and foreign-key labels, see [database-relations.md](database-relations.md).
+
 ```mermaid
 erDiagram
   users ||--o{ refresh_tokens : has

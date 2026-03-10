@@ -231,7 +231,7 @@ Important database constraints:
 - the same attraction cannot appear twice in one trip
 - itinerary items can only reference attractions from the trip destination
 
-For the full ERD and table-by-table explanation, see [docs/schema.md](docs/schema.md).
+For the full schema summary, see [docs/schema.md](docs/schema.md). For a dedicated visual ERD, see [docs/database-relations.md](docs/database-relations.md).
 
 ## Seed data
 
