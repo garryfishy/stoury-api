@@ -80,7 +80,12 @@ erDiagram
     string slug UK
     string name
     decimal rating
+    string external_source
+    string external_place_id
     decimal external_rating
+    string enrichment_status
+    datetime enrichment_attempted_at
+    datetime external_last_synced_at
     int estimated_duration_minutes
     jsonb opening_hours
   }
@@ -162,6 +167,7 @@ erDiagram
 
 - One user can have many trips, but overlapping trips to the same destination are rejected at the database level.
 - A trip has at most one itinerary.
+- Provider enrichment records on `attractions` are unique by `(external_source, external_place_id)` when both values exist.
 - Itinerary items can only reference attractions that belong to the trip destination.
 - The same attraction cannot appear twice in the same trip.
 - Trip preferences are copied into trip-owned rows and do not point dynamically at future user preference changes.

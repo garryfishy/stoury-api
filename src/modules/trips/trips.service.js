@@ -17,11 +17,33 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
     TripPreferenceCategory: getRequiredModel(db, "TripPreferenceCategory"),
   });
 
-  const assertDestinationExists = async (Destination, destinationId, transaction) => {
-    const destination = await findDestinationByIdOrSlug(Destination, String(destinationId));
+  const loadDestination = async (
+    Destination,
+    destinationId,
+    transaction,
+    { activeOnly = false, statusCode = 422 } = {}
+  ) => {
+    const destination = await findDestinationByIdOrSlug(
+      Destination,
+      String(destinationId),
+      { activeOnly }
+    );
 
     if (!destination) {
-      throw new AppError("Destination not found.", 422);
+      throw new AppError("Destination not found.", statusCode);
+    }
+
+    return destination;
+  };
+
+  const assertDestinationSelectable = async (Destination, destinationId, transaction) => {
+    const destination = await loadDestination(Destination, destinationId, transaction);
+
+    if (!readRecordValue(destination, ["isActive"], false)) {
+      throw new AppError(
+        "Destination is inactive and cannot be used for trip planning.",
+        422
+      );
     }
 
     return destination;
@@ -185,7 +207,7 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
       const { Destination, Trip, TripPreferenceCategory } = getTripModels(db);
 
       return withTransaction(async (transaction) => {
-        const destination = await assertDestinationExists(
+        const selectableDestination = await assertDestinationSelectable(
           Destination,
           payload.destinationId,
           transaction
@@ -228,7 +250,7 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
         await replaceTripPreferences(TripPreferenceCategory, getTripId(trip), categories, transaction);
 
         return serializeTrip(trip, {
-          destination,
+          destination: selectableDestination,
           preferences: categories,
           hasItinerary: false,
         });
@@ -279,7 +301,9 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
 
       const trip = await assertOwnership(Trip, userId, tripId);
       const destinationId = readRecordValue(trip, ["destinationId"]);
-      const destination = await assertDestinationExists(Destination, destinationId);
+      const destination = await loadDestination(Destination, destinationId, null, {
+        statusCode: 404,
+      });
       const preferences = await loadTripPreferences(db, tripId);
       const hasItinerary = await hasExistingItinerary(Itinerary, tripId);
 
@@ -315,7 +339,9 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
           );
         }
 
-        const destination = await assertDestinationExists(Destination, nextDestinationId, transaction);
+        const destination = payload.destinationId !== undefined
+          ? await assertDestinationSelectable(Destination, nextDestinationId, transaction)
+          : await loadDestination(Destination, nextDestinationId, transaction);
         assertValidDateRange(nextStartDate, nextEndDate);
 
         await assertNoOverlap(

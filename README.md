@@ -18,6 +18,7 @@ Current workspace status:
 
 - implemented: auth, users, preferences, destinations, attractions, trips, database schema, migrations, seeders, Swagger/OpenAPI wiring
 - planned / still evolving: itinerary save endpoints, AI itinerary preview flow
+- internal / operational only: admin Google Places attraction enrichment, which can be disabled per environment
 
 ## Tech stack
 
@@ -58,6 +59,8 @@ JWT_ACCESS_SECRET=change-me JWT_REFRESH_SECRET=change-me npm start
 - OpenAPI assembly entry point: [`src/docs/openapi/index.js`](src/docs/openapi/index.js)
 
 The OpenAPI document is composed from shared components plus per-module path files so future itinerary and AI-planning docs can be added without rewriting the existing sections.
+
+Public catalog endpoints use `page` / `limit` pagination and return top-level `meta` with `page`, `limit`, `total`, and `totalPages`.
 
 ## Project structure
 
@@ -142,6 +145,10 @@ Core app variables:
 - `JWT_REFRESH_EXPIRES_IN`
 - `AUTH_RATE_LIMIT_WINDOW_MS`
 - `AUTH_RATE_LIMIT_MAX`
+- `ADMIN_ENRICHMENT_ENABLED`
+- `ADMIN_ENRICHMENT_RATE_LIMIT_WINDOW_MS`
+- `ADMIN_ENRICHMENT_RATE_LIMIT_MAX`
+- `ADMIN_ENRICHMENT_BATCH_RATE_LIMIT_MAX`
 - `ENABLE_HTTPS_UPGRADE_CSP`
 - `OPENAPI_SERVER_URL`
 
@@ -167,6 +174,8 @@ Database variables:
 Notes:
 
 - `src/config/env.js` validates the runtime app/auth env contract on boot.
+- Admin enrichment is an internal admin-only operational feature. Set `ADMIN_ENRICHMENT_ENABLED=false` in shared environments if you want the traveler-facing MVP surface to stay isolated.
+- When admin enrichment is enabled, `GOOGLE_PLACES_API_KEY` must also be configured. The app still boots if it is missing, but the admin enrichment routes return `503` and `/health` exposes the runtime state under `data.features.adminEnrichment`.
 - `src/database/config/config.js` reads the PostgreSQL variables for Sequelize CLI and DB setup.
 - If `DATABASE_URL`, `DATABASE_URL_TEST`, or `DATABASE_URL_PROD` is present, Sequelize uses that connection string for the matching environment.
 - Leave `ENABLE_HTTPS_UPGRADE_CSP=false` when serving the app directly over plain HTTP on a VPS/IP. Set it to `true` only when the app is behind a real HTTPS terminator such as Nginx, Caddy, or a load balancer.
@@ -222,10 +231,12 @@ The schema uses:
 - normalized roles via `roles` and `user_roles`
 - trip-owned preference snapshots via `trip_preference_categories`
 - curated destinations and attractions as the MVP source of truth
+- provider enrichment fields on attractions, with internal workflow state for pending/review/failed tracking
 
 Important database constraints:
 
 - unique `users.email`, `destinations.slug`, `attractions.slug`
+- unique provider attraction matches by `(external_source, external_place_id)` when both values are present
 - same user cannot create overlapping trips for the same destination
 - itinerary day numbering must stay sequential and within the trip date range
 - the same attraction cannot appear twice in one trip
@@ -253,9 +264,9 @@ Seeded MVP destinations:
 
 Catalog density:
 
-- 12 attractions for Batam
-- 12 attractions for Yogyakarta
-- 12 attractions for Bali
+- 24 attractions for Batam
+- 24 attractions for Yogyakarta
+- 24 attractions for Bali
 
 QA bootstrap user for development/test:
 

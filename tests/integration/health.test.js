@@ -21,8 +21,15 @@ describe("GET /health", () => {
       data: expect.objectContaining({
         app: "stoury-api",
         environment: "test",
+        features: {
+          adminEnrichment: {
+            enabled: true,
+            status: "enabled",
+            featureFlagEnabled: true,
+            googlePlacesConfigured: true,
+          },
+        },
       }),
     });
   });
 });
-

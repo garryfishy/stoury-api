@@ -35,6 +35,14 @@ jest.mock("../src/modules/attractions/attractions.service", () => ({
   },
 }));
 
+jest.mock("../src/modules/admin-attractions/admin-attractions.service", () => ({
+  adminAttractionsService: {
+    listPendingEnrichment: jest.fn(),
+    enrichAttraction: jest.fn(),
+    enrichMissing: jest.fn(),
+  },
+}));
+
 jest.mock("../src/modules/trips/trips.service", () => ({
   tripsService: {
     createTrip: jest.fn(),
@@ -63,6 +71,9 @@ const { usersService } = require("../src/modules/users/users.service");
 const { preferencesService } = require("../src/modules/preferences/preferences.service");
 const { destinationsService } = require("../src/modules/destinations/destinations.service");
 const { attractionsService } = require("../src/modules/attractions/attractions.service");
+const {
+  adminAttractionsService,
+} = require("../src/modules/admin-attractions/admin-attractions.service");
 const { tripsService } = require("../src/modules/trips/trips.service");
 const { itinerariesService } = require("../src/modules/itineraries/itineraries.service");
 const { aiPlanningService } = require("../src/modules/ai-planning/ai-planning.service");
@@ -85,6 +96,11 @@ const {
   listByDestination,
   getAttraction,
 } = require("../src/modules/attractions/attractions.controller");
+const {
+  enrichAttraction,
+  enrichMissingAttractions,
+  listPendingEnrichment,
+} = require("../src/modules/admin-attractions/admin-attractions.controller");
 const {
   createTrip,
   listMyTrips,
@@ -253,19 +269,23 @@ describe("controllers", () => {
 
   describe("destinations controller", () => {
     test("listDestinations returns public destinations", async () => {
-      const req = {};
+      const req = { query: { page: 2, limit: 1 } };
       const res = createMockResponse();
       const next = createMockNext();
-      const payload = [{ id: "dest-1", slug: "batam" }];
+      const payload = {
+        items: [{ id: "dest-1", slug: "batam" }],
+        pagination: { page: 2, limit: 1, total: 3, totalPages: 3 },
+      };
       destinationsService.listDestinations.mockResolvedValue(payload);
 
       await listDestinations(req, res, next);
 
-      expect(destinationsService.listDestinations).toHaveBeenCalled();
+      expect(destinationsService.listDestinations).toHaveBeenCalledWith(req.query);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: "Destinations fetched.",
-        data: payload,
+        data: payload.items,
+        meta: payload.pagination,
       });
     });
 
@@ -291,20 +311,28 @@ describe("controllers", () => {
     test("listByDestination returns filtered attractions", async () => {
       const req = {
         params: { destinationId: "dest-1" },
-        query: { categoryIds: ["cat-1"] },
+        query: { categoryIds: ["cat-1"], page: 2, limit: 1 },
       };
       const res = createMockResponse();
       const next = createMockNext();
-      const payload = { destination: { id: "dest-1" }, items: [{ id: "attr-1" }] };
+      const payload = {
+        destination: { id: "dest-1" },
+        items: [{ id: "attr-1" }],
+        pagination: { page: 2, limit: 1, total: 4, totalPages: 4 },
+      };
       attractionsService.listByDestination.mockResolvedValue(payload);
 
       await listByDestination(req, res, next);
 
-      expect(attractionsService.listByDestination).toHaveBeenCalledWith("dest-1", ["cat-1"]);
+      expect(attractionsService.listByDestination).toHaveBeenCalledWith("dest-1", req.query);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: "Attractions fetched.",
-        data: payload,
+        data: {
+          destination: payload.destination,
+          items: payload.items,
+        },
+        meta: payload.pagination,
       });
     });
 
@@ -321,6 +349,65 @@ describe("controllers", () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: "Attraction fetched.",
+        data: payload,
+      });
+    });
+  });
+
+  describe("admin attractions controller", () => {
+    test("listPendingEnrichment returns the admin enrichment list payload", async () => {
+      const req = {
+        query: { status: "pending", limit: 10 },
+      };
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = { items: [{ id: "attr-1" }], total: 1 };
+      adminAttractionsService.listPendingEnrichment.mockResolvedValue(payload);
+
+      await listPendingEnrichment(req, res, next);
+
+      expect(adminAttractionsService.listPendingEnrichment).toHaveBeenCalledWith(req.query);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Pending attraction enrichment fetched.",
+        data: payload,
+      });
+    });
+
+    test("enrichAttraction returns the enrichment result", async () => {
+      const req = {
+        params: { attractionId: "attr-1" },
+      };
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = { outcome: "enriched" };
+      adminAttractionsService.enrichAttraction.mockResolvedValue(payload);
+
+      await enrichAttraction(req, res, next);
+
+      expect(adminAttractionsService.enrichAttraction).toHaveBeenCalledWith("attr-1");
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Attraction enrichment processed.",
+        data: payload,
+      });
+    });
+
+    test("enrichMissingAttractions returns the batch summary", async () => {
+      const req = {
+        body: { dryRun: true, limit: 3 },
+      };
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = { dryRun: true, attemptedCount: 3 };
+      adminAttractionsService.enrichMissing.mockResolvedValue(payload);
+
+      await enrichMissingAttractions(req, res, next);
+
+      expect(adminAttractionsService.enrichMissing).toHaveBeenCalledWith(req.body);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Attraction batch enrichment processed.",
         data: payload,
       });
     });

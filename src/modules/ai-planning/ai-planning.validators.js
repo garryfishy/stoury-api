@@ -35,6 +35,21 @@ const aiPlanningCoverageSchema = z.object({
   maxItemsPerDay: z.number().int().positive(),
 });
 
+const numericLikeSchema = z.union([z.number(), z.string()]);
+
+const aiPlanningBudgetFitSchema = z.object({
+  level: z.enum([
+    "not_provided",
+    "very_low",
+    "tight",
+    "balanced",
+    "comfortable",
+  ]),
+  perDayBudget: z.number().nonnegative().nullable(),
+  isApproximate: z.literal(true),
+  reasoning: z.string().min(1),
+});
+
 const aiPlanningPreviewSchema = z.object({
   tripId: uuidSchema,
   destinationId: uuidSchema,
@@ -44,6 +59,9 @@ const aiPlanningPreviewSchema = z.object({
   generatedAt: z.string().datetime({ offset: true }),
   preferences: z.array(previewPreferenceSchema),
   strategy: aiPlanningStrategySchema,
+  budget: numericLikeSchema.nullable(),
+  budgetFit: aiPlanningBudgetFitSchema,
+  budgetWarnings: z.array(z.string()),
   isPartial: z.boolean(),
   coverage: aiPlanningCoverageSchema,
   warnings: z.array(z.string()),

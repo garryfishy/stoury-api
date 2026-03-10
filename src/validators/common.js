@@ -39,7 +39,14 @@ const optionalUuidArrayQuery = z.preprocess((value) => {
   return value;
 }, z.array(uuidSchema).optional());
 
+const buildPaginationQuerySchema = ({ defaultLimit = 20, maxLimit = 100 } = {}) =>
+  z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(maxLimit).default(defaultLimit),
+  });
+
 module.exports = {
+  buildPaginationQuerySchema,
   dateOnlySchema,
   destinationIdParamSchema,
   idOrSlugParamSchema,

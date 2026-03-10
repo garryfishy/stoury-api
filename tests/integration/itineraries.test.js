@@ -6,6 +6,10 @@ const {
   closeTestDb,
   ensureTestDbReady,
 } = require("./helpers/db");
+const {
+  restoreDestinationStates,
+  setDestinationActiveState,
+} = require("./helpers/destination-state");
 const { loadSeedData } = require("./helpers/seed-data");
 const {
   buildAlternateBaliItineraryPayload,
@@ -24,7 +28,16 @@ beforeAll(async () => {
   seedData = await loadSeedData();
 });
 
+beforeEach(async () => {
+  seedData = await setDestinationActiveState("bali", true);
+});
+
+afterEach(async () => {
+  seedData = await restoreDestinationStates();
+});
+
 afterAll(async () => {
+  seedData = await restoreDestinationStates();
   await cleanupTestArtifacts();
   await closeTestDb();
 });
@@ -113,6 +126,10 @@ describe("itineraries integration", () => {
           source: "manual",
           attraction: expect.objectContaining({
             name: "Tanah Lot",
+            latitude: expect.any(String),
+            longitude: expect.any(String),
+            fullAddress: expect.any(String),
+            enrichment: expect.any(Object),
             categories: expect.arrayContaining([
               expect.objectContaining({ slug: "beach" }),
             ]),
@@ -120,6 +137,12 @@ describe("itineraries integration", () => {
         }),
       ])
     );
+    expect(
+      saveResponse.body.data.days[0].items[0].attraction.enrichment
+    ).toHaveProperty("externalSource");
+    expect(
+      saveResponse.body.data.days[0].items[0].attraction.enrichment
+    ).toHaveProperty("externalPlaceId");
     expect(saveResponse.body.data.days[1].dayNumber).toBe(2);
 
     const getResponse = await request(app)

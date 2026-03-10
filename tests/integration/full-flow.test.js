@@ -6,12 +6,18 @@ const {
   closeTestDb,
   ensureTestDbReady,
 } = require("./helpers/db");
+const {
+  restoreDestinationStates,
+  setDestinationActiveState,
+} = require("./helpers/destination-state");
 const { loadSeedData } = require("./helpers/seed-data");
 const {
   buildAiTripPayload,
   buildManualTripPayload,
   buildPrimaryBaliItineraryPayload,
 } = require("./helpers/builders");
+
+jest.setTimeout(10000);
 
 const createTrip = (accessToken, payload) =>
   request(app).post("/api/trips").set(authHeader(accessToken)).send(payload);
@@ -24,7 +30,17 @@ beforeAll(async () => {
   seedData = await loadSeedData();
 });
 
+beforeEach(async () => {
+  seedData = await setDestinationActiveState("bali", true);
+  seedData = await setDestinationActiveState("yogyakarta", true);
+});
+
+afterEach(async () => {
+  seedData = await restoreDestinationStates();
+});
+
 afterAll(async () => {
+  seedData = await restoreDestinationStates();
   await cleanupTestArtifacts();
   await closeTestDb();
 });

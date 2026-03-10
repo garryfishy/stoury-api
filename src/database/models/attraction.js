@@ -1,5 +1,7 @@
 const { Model } = require("sequelize");
 
+const ENRICHMENT_STATUSES = ["pending", "enriched", "needs_review", "failed"];
+
 module.exports = (sequelize, DataTypes) => {
   class Attraction extends Model {
     static associate(models) {
@@ -108,6 +110,22 @@ module.exports = (sequelize, DataTypes) => {
         }
       },
       externalLastSyncedAt: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      enrichmentStatus: {
+        type: DataTypes.STRING(32),
+        allowNull: false,
+        defaultValue: "pending",
+        validate: {
+          isIn: [ENRICHMENT_STATUSES]
+        }
+      },
+      enrichmentError: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      enrichmentAttemptedAt: {
         type: DataTypes.DATE,
         allowNull: true
       },

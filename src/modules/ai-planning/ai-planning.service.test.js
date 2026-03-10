@@ -1,4 +1,11 @@
+process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "test-access-secret";
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh-secret";
+process.env.AI_PLANNING_PROVIDER = "deterministic";
+
 const { createAiPlanningService } = require("./ai-planning.service");
+const {
+  createHuggingFacePlanningProvider,
+} = require("./ai-planning.providers");
 const { createMockDb } = require("../../test-utils/mock-sequelize-db");
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -88,6 +95,7 @@ const createService = ({
         planningMode,
         startDate: "2026-04-01",
         endDate: "2026-04-01",
+        budget: "2500000.00",
         ...tripOverrides,
       },
     ],
@@ -181,7 +189,18 @@ describe("aiPlanningService", () => {
     expect(preview.isPartial).toBe(false);
     expect(preview.coverage.availableAttractionCount).toBe(4);
     expect(preview.coverage.requestedItemSlots).toBe(4);
-    expect(preview.warnings).toHaveLength(0);
+    expect(preview.budget).toBe("2500000.00");
+    expect(preview.budgetFit).toEqual({
+      level: "comfortable",
+      perDayBudget: 2500000,
+      isApproximate: true,
+      reasoning:
+        "Budget averages about 2,500,000 per day across 1 day(s), which gives the planner comfortable room for the current curated itinerary style.",
+    });
+    expect(preview.budgetWarnings).toEqual([
+      "Budget fit is approximate because attraction-level pricing, transport, food, and lodging costs are not stored in the current catalog yet.",
+    ]);
+    expect(preview.warnings).toEqual(preview.budgetWarnings);
 
     const attractionIds = preview.days.flatMap((day) =>
       day.items.map((item) => item.attractionId)
@@ -191,6 +210,40 @@ describe("aiPlanningService", () => {
     expect(preview.days[0].items[0].attractionId).toBe(TEMPLE_ATTRACTION_ID);
     expect(preview.days[0].items[0].source).toBe("ai_assisted");
     expect(preview.days[0].isPartial).toBe(false);
+  });
+
+  test("passes trip budget into provider input", async () => {
+    const planningProvider = {
+      name: "deterministic",
+      rankCandidates: jest.fn().mockResolvedValue({
+        rankedAttractionIds: [
+          TEMPLE_ATTRACTION_ID,
+          FOOD_ATTRACTION_ID,
+          VIEW_ATTRACTION_ID,
+          PARK_ATTRACTION_ID,
+        ],
+        explanation: null,
+      }),
+    };
+    const service = createService({
+      planningProvider,
+      tripOverrides: {
+        endDate: "2026-04-03",
+        budget: "900000.00",
+      },
+    });
+
+    await service.generatePreview(USER_ID, TRIP_ID);
+
+    expect(planningProvider.rankCandidates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trip: expect.objectContaining({
+          tripId: TRIP_ID,
+          budget: "900000.00",
+          budgetPerDay: 300000,
+        }),
+      })
+    );
   });
 
   test("rejects AI preview generation for manual trips", async () => {
@@ -241,6 +294,40 @@ describe("aiPlanningService", () => {
     );
   });
 
+  test("falls back to deterministic ranking when provider reranking fails", async () => {
+    const logger = {
+      warn: jest.fn(),
+    };
+    const service = createService({
+      planningProvider: createHuggingFacePlanningProvider({
+        logger,
+        inferenceClient: {
+          async rankCandidates() {
+            const error = new Error("Hugging Face request timed out.");
+            error.code = "AI_TIMEOUT";
+            error.status = 504;
+            throw error;
+          },
+        },
+      }),
+    });
+
+    const preview = await service.generatePreview(USER_ID, TRIP_ID);
+
+    expect(preview.strategy.mode).toBe("deterministic_only");
+    expect(preview.strategy.provider).toBe("hugging-face");
+    expect(preview.strategy.usedProviderRanking).toBe(false);
+    expect(preview.days[0].items[0].attractionId).toBe(TEMPLE_ATTRACTION_ID);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("Falling back to deterministic order"),
+      expect.objectContaining({
+        provider: "hugging-face",
+        code: "AI_TIMEOUT",
+        status: 504,
+      })
+    );
+  });
+
   test("returns partial previews with explicit warnings when curated attractions are insufficient", async () => {
     const service = createService({
       tripOverrides: {
@@ -262,5 +349,34 @@ describe("aiPlanningService", () => {
     expect(preview.days[0].items).not.toHaveLength(0);
     expect(preview.days[2].items).toHaveLength(0);
     expect(preview.days[2].isPartial).toBe(true);
+  });
+
+  test("returns low-budget warnings without blocking preview generation", async () => {
+    const service = createService({
+      tripOverrides: {
+        endDate: "2026-04-03",
+        budget: "450000.00",
+      },
+    });
+
+    const preview = await service.generatePreview(USER_ID, TRIP_ID);
+
+    expect(preview.budget).toBe("450000.00");
+    expect(preview.budgetFit).toEqual({
+      level: "very_low",
+      perDayBudget: 150000,
+      isApproximate: true,
+      reasoning:
+        "Budget averages about 150,000 per day across 3 day(s), so this preview should be treated as a very rough, lighter-spend plan only.",
+    });
+    expect(preview.budgetWarnings).toEqual(
+      expect.arrayContaining([
+        "Trip budget is very low relative to 3 day(s) of travel (about 150,000 per day).",
+        "Budget fit is approximate because attraction-level pricing, transport, food, and lodging costs are not stored in the current catalog yet.",
+      ])
+    );
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining(preview.budgetWarnings)
+    );
   });
 });

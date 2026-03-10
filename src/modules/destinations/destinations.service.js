@@ -1,19 +1,36 @@
 const { getDb, getRequiredModel } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
+const {
+  buildPaginationMeta,
+  getPaginationOffset,
+  normalizePagination,
+} = require("../../utils/pagination");
 const { findDestinationByIdOrSlug, serializeDestination } = require("./destinations.helpers");
 
 const createDestinationsService = ({ dbProvider = getDb } = {}) => ({
-  async listDestinations() {
+  async listDestinations(query = {}) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
-
-    // TODO: Add pagination before the public destination catalog grows beyond MVP scale.
-    const destinations = await Destination.findAll({
-      where: { isActive: true },
-      order: [["sortOrder", "ASC"], ["name", "ASC"]],
+    const pagination = normalizePagination({
+      page: query.page,
+      limit: query.limit,
+      defaultLimit: 20,
     });
 
-    return destinations.map(serializeDestination);
+    const { count, rows } = await Destination.findAndCountAll({
+      order: [["sortOrder", "ASC"], ["name", "ASC"]],
+      limit: pagination.limit,
+      offset: getPaginationOffset(pagination),
+    });
+
+    return {
+      items: rows.map(serializeDestination),
+      pagination: buildPaginationMeta({
+        page: pagination.page,
+        limit: pagination.limit,
+        total: count,
+      }),
+    };
   },
 
   async getDestination(idOrSlug) {

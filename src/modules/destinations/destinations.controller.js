@@ -2,9 +2,14 @@ const { asyncHandler } = require("../../utils/async-handler");
 const { sendSuccess } = require("../../utils/response");
 const { destinationsService } = require("./destinations.service");
 
-const listDestinations = asyncHandler(async (_req, res) => {
-  const data = await destinationsService.listDestinations();
-  return sendSuccess(res, { message: "Destinations fetched.", data });
+const listDestinations = asyncHandler(async (req, res) => {
+  const { items, pagination } = await destinationsService.listDestinations(req.query);
+
+  return sendSuccess(res, {
+    message: "Destinations fetched.",
+    data: items,
+    meta: pagination,
+  });
 });
 
 const getDestination = asyncHandler(async (req, res) => {

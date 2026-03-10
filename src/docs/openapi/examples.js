@@ -11,6 +11,8 @@ const ids = {
   itineraryItemId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   secondAttractionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   thirdAttractionId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  googlePlaceId: "ChIJabc123examplePlace",
+  googleAltPlaceId: "ChIJalt456examplePlace",
 };
 
 const user = {
@@ -39,6 +41,7 @@ const destination = {
   id: ids.destinationId,
   name: "Batam",
   slug: "batam",
+  isActive: true,
   description: "Weekend-friendly island city with food, shopping, and seaside escapes.",
   destinationType: "city",
   countryCode: "ID",
@@ -90,10 +93,17 @@ const itineraryAttractionSummary = {
   destinationId: attraction.destinationId,
   name: attraction.name,
   slug: attraction.slug,
+  fullAddress: attraction.fullAddress,
+  latitude: attraction.latitude,
+  longitude: attraction.longitude,
   estimatedDurationMinutes: attraction.estimatedDurationMinutes,
   rating: attraction.rating,
   thumbnailImageUrl: attraction.thumbnailImageUrl,
   mainImageUrl: attraction.mainImageUrl,
+  enrichment: {
+    externalSource: attraction.enrichment.externalSource,
+    externalPlaceId: attraction.enrichment.externalPlaceId,
+  },
   categories: attraction.categories,
 };
 
@@ -102,10 +112,17 @@ const secondItineraryAttractionSummary = {
   destinationId: ids.destinationId,
   name: "Barelang Bridge",
   slug: "barelang-bridge",
+  fullAddress: "Barelang, Batam, Kepulauan Riau, Indonesia",
+  latitude: "1.0202000",
+  longitude: "103.9859000",
   estimatedDurationMinutes: 90,
   rating: "4.6",
   thumbnailImageUrl: "https://images.example.com/attractions/barelang-thumb.jpg",
   mainImageUrl: "https://images.example.com/attractions/barelang-main.jpg",
+  enrichment: {
+    externalSource: null,
+    externalPlaceId: null,
+  },
   categories: [attractionCategory],
 };
 
@@ -114,10 +131,17 @@ const thirdItineraryAttractionSummary = {
   destinationId: ids.destinationId,
   name: "Mega Wisata Ocarina",
   slug: "mega-wisata-ocarina",
+  fullAddress: "Sadai, Bengkong, Batam, Kepulauan Riau, Indonesia",
+  latitude: "1.1565000",
+  longitude: "104.0443000",
   estimatedDurationMinutes: 120,
   rating: "4.4",
   thumbnailImageUrl: "https://images.example.com/attractions/ocarina-thumb.jpg",
   mainImageUrl: "https://images.example.com/attractions/ocarina-main.jpg",
+  enrichment: {
+    externalSource: null,
+    externalPlaceId: null,
+  },
   categories: [attractionCategory],
 };
 
@@ -227,12 +251,36 @@ const aiPlanningPreview = {
     reasoning:
       "MVP generation uses deterministic scheduling over curated DB attractions. Providers may rerank known candidates later but cannot introduce new attractions.",
   },
-  warnings: [],
+  budget: "2500000.00",
+  budgetFit: {
+    level: "balanced",
+    perDayBudget: 833333.33,
+    isApproximate: true,
+    reasoning:
+      "Budget averages about 833,333 per day across 3 day(s), which is a workable planning signal for the current curated itinerary style.",
+  },
+  budgetWarnings: [
+    "Budget fit is approximate because attraction-level pricing, transport, food, and lodging costs are not stored in the current catalog yet.",
+  ],
+  isPartial: true,
+  coverage: {
+    requestedDayCount: 3,
+    generatedDayCount: 3,
+    availableAttractionCount: 3,
+    requestedItemSlots: 12,
+    scheduledItemCount: 3,
+    maxItemsPerDay: 4,
+  },
+  warnings: [
+    "Only 3 curated attractions were available for 12 recommended itinerary slots (3 day(s) x 4 items/day). The preview includes partial days where needed.",
+    "Budget fit is approximate because attraction-level pricing, transport, food, and lodging costs are not stored in the current catalog yet.",
+  ],
   days: [
     {
       dayNumber: 1,
       date: "2026-04-10",
       notes: null,
+      isPartial: true,
       items: [
         {
           attractionId: attraction.id,
@@ -244,22 +292,13 @@ const aiPlanningPreview = {
           source: "ai_assisted",
           attraction: itineraryAttractionSummary,
         },
-        {
-          attractionId: ids.secondAttractionId,
-          attractionName: secondItineraryAttractionSummary.name,
-          startTime: "11:30",
-          endTime: "13:00",
-          orderIndex: 2,
-          notes: null,
-          source: "ai_assisted",
-          attraction: secondItineraryAttractionSummary,
-        },
       ],
     },
     {
       dayNumber: 2,
       date: "2026-04-11",
       notes: null,
+      isPartial: true,
       items: [
         {
           attractionId: ids.secondAttractionId,
@@ -277,6 +316,7 @@ const aiPlanningPreview = {
       dayNumber: 3,
       date: "2026-04-12",
       notes: null,
+      isPartial: true,
       items: [
         {
           attractionId: ids.thirdAttractionId,
@@ -293,9 +333,164 @@ const aiPlanningPreview = {
   ],
 };
 
+const adminPendingAttraction = {
+  id: ids.attractionId,
+  name: attraction.name,
+  slug: attraction.slug,
+  coordinates: {
+    latitude: 1.187,
+    longitude: 104.119,
+  },
+  destination,
+  enrichment: {
+    status: "pending",
+    error: null,
+    attemptedAt: null,
+    externalSource: null,
+    externalPlaceId: null,
+    externalRating: null,
+    externalReviewCount: null,
+    externalLastSyncedAt: null,
+  },
+};
+
+const adminGooglePlaceCandidate = {
+  placeId: ids.googlePlaceId,
+  name: "Pantai Nongsa",
+  formattedAddress: "Nongsa, Batam City, Riau Islands, Indonesia",
+  location: {
+    latitude: 1.1868,
+    longitude: 104.1194,
+  },
+  rating: 4.4,
+  userRatingsTotal: 2874,
+  types: ["tourist_attraction", "point_of_interest"],
+  url: "https://maps.google.com/?cid=1234567890",
+  websiteUri: null,
+  distanceMeters: 52,
+  exactNameMatch: true,
+  partialNameMatch: true,
+  score: 104,
+};
+
+const adminGoogleAltCandidate = {
+  placeId: ids.googleAltPlaceId,
+  name: "Nongsa Beach Club",
+  formattedAddress: "Nongsa, Batam City, Riau Islands, Indonesia",
+  location: {
+    latitude: 1.193,
+    longitude: 104.125,
+  },
+  rating: 4.1,
+  userRatingsTotal: 912,
+  types: ["lodging", "tourist_attraction"],
+  url: null,
+  websiteUri: null,
+  distanceMeters: 843,
+  exactNameMatch: false,
+  partialNameMatch: true,
+  score: 58,
+};
+
+const adminEnrichmentSuccessResult = {
+  attraction: {
+    ...adminPendingAttraction,
+    enrichment: {
+      status: "enriched",
+      error: null,
+      attemptedAt: "2026-03-10T08:30:00.000Z",
+      externalSource: "google_places",
+      externalPlaceId: ids.googlePlaceId,
+      externalRating: 4.4,
+      externalReviewCount: 2874,
+      externalLastSyncedAt: "2026-03-10T08:30:00.000Z",
+    },
+  },
+  outcome: "enriched",
+  query: "Pantai Nongsa, Batam, Indonesia",
+  candidateCount: 1,
+  candidates: [adminGooglePlaceCandidate],
+  selectedPlace: {
+    ...adminGooglePlaceCandidate,
+    distanceMeters: undefined,
+    exactNameMatch: undefined,
+    partialNameMatch: undefined,
+    score: undefined,
+  },
+  error: null,
+  reason: null,
+};
+
+const adminEnrichmentNeedsReviewResult = {
+  attraction: {
+    ...adminPendingAttraction,
+    enrichment: {
+      ...adminPendingAttraction.enrichment,
+      status: "needs_review",
+      attemptedAt: "2026-03-10T08:31:00.000Z",
+    },
+  },
+  outcome: "needs_review",
+  query: "Pantai Nongsa, Batam, Indonesia",
+  candidateCount: 2,
+  candidates: [adminGooglePlaceCandidate, adminGoogleAltCandidate],
+  selectedPlace: null,
+  error: null,
+  reason: "Google Places returned multiple plausible matches. Manual review is required.",
+};
+
+const adminEnrichmentFailedResult = {
+  attraction: {
+    ...adminPendingAttraction,
+    enrichment: {
+      ...adminPendingAttraction.enrichment,
+      status: "failed",
+      error: "Google Places text search timed out.",
+      attemptedAt: "2026-03-10T08:32:00.000Z",
+    },
+  },
+  outcome: "failed",
+  query: "Pantai Nongsa, Batam, Indonesia",
+  candidateCount: 0,
+  candidates: [],
+  selectedPlace: null,
+  error: "Google Places text search timed out.",
+  reason: "Google Places text search timed out.",
+};
+
+const adminEnrichmentPendingCollection = {
+  items: [adminPendingAttraction],
+  total: 1,
+  filtersApplied: {
+    destinationId: ids.destinationId,
+    status: "pending",
+    limit: 25,
+    staleOnly: false,
+    staleDays: 30,
+  },
+};
+
+const adminBatchEnrichmentSummary = {
+  dryRun: true,
+  attemptedCount: 3,
+  enrichedCount: 1,
+  needsReviewCount: 1,
+  failedCount: 1,
+  results: [
+    adminEnrichmentSuccessResult,
+    adminEnrichmentNeedsReviewResult,
+    adminEnrichmentFailedResult,
+  ],
+};
+
 module.exports = {
   attraction,
   attractionCategory,
+  adminBatchEnrichmentSummary,
+  adminEnrichmentFailedResult,
+  adminEnrichmentNeedsReviewResult,
+  adminEnrichmentPendingCollection,
+  adminEnrichmentSuccessResult,
   aiPlanningPreview,
   destination,
   ids,

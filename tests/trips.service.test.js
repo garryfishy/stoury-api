@@ -178,6 +178,49 @@ describe("trips service", () => {
     expect(db.TripPreferenceCategory.bulkCreate).not.toHaveBeenCalled();
   });
 
+  test("createTrip rejects inactive destinations with a clear message", async () => {
+    const db = {
+      Destination: {
+        findOne: jest.fn().mockResolvedValue({
+          ...activeDestination,
+          isActive: false,
+        }),
+      },
+      PreferenceCategory: {
+        findAll: jest.fn(),
+      },
+      Trip: {
+        findOne: jest.fn(),
+        create: jest.fn(),
+      },
+      TripPreferenceCategory: {
+        destroy: jest.fn(),
+        bulkCreate: jest.fn(),
+      },
+      UserPreferenceCategory: {
+        findAll: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const tripsService = createTripsService({
+      dbProvider: () => db,
+    });
+
+    await expect(
+      tripsService.createTrip(userId, {
+        title: "Blocked Trip",
+        destinationId,
+        planningMode: "manual",
+        startDate: "2026-04-10",
+        endDate: "2026-04-12",
+        budget: 2500000,
+        preferenceSource: "profile",
+      })
+    ).rejects.toMatchObject({
+      message: "Destination is inactive and cannot be used for trip planning.",
+      statusCode: 422,
+    });
+  });
+
   test("createTrip rejects unknown custom preference category IDs", async () => {
     const db = {
       Destination: {
@@ -356,6 +399,51 @@ describe("trips service", () => {
       })
     ).rejects.toMatchObject({
       message: "One or more trip preference categories do not exist.",
+      statusCode: 422,
+    });
+  });
+
+  test("updateTrip rejects switching to an inactive destination", async () => {
+    const inactiveDestinationId = "99999999-9999-4999-8999-999999999999";
+    const db = {
+      Destination: {
+        findOne: jest.fn().mockResolvedValue({
+          id: inactiveDestinationId,
+          name: "Yogyakarta",
+          slug: "yogyakarta",
+          isActive: false,
+        }),
+      },
+      Trip: {
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce(existingTrip)
+          .mockResolvedValueOnce(null),
+      },
+      Itinerary: {
+        findOne: jest.fn().mockResolvedValue(null),
+      },
+      TripPreferenceCategory: {
+        destroy: jest.fn(),
+        bulkCreate: jest.fn(),
+      },
+      PreferenceCategory: {
+        findAll: jest.fn(),
+      },
+      UserPreferenceCategory: {
+        findAll: jest.fn(),
+      },
+    };
+    const tripsService = createTripsService({
+      dbProvider: () => db,
+    });
+
+    await expect(
+      tripsService.updateTrip(userId, existingTrip.id, {
+        destinationId: inactiveDestinationId,
+      })
+    ).rejects.toMatchObject({
+      message: "Destination is inactive and cannot be used for trip planning.",
       statusCode: 422,
     });
   });

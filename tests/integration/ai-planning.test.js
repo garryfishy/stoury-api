@@ -6,6 +6,10 @@ const {
   closeTestDb,
   ensureTestDbReady,
 } = require("./helpers/db");
+const {
+  restoreDestinationStates,
+  setDestinationActiveState,
+} = require("./helpers/destination-state");
 const { loadSeedData } = require("./helpers/seed-data");
 const {
   buildAiTripPayload,
@@ -29,7 +33,17 @@ beforeAll(async () => {
   seedData = await loadSeedData();
 });
 
+beforeEach(async () => {
+  seedData = await setDestinationActiveState("bali", true);
+  seedData = await setDestinationActiveState("yogyakarta", true);
+});
+
+afterEach(async () => {
+  seedData = await restoreDestinationStates();
+});
+
 afterAll(async () => {
+  seedData = await restoreDestinationStates();
   await cleanupTestArtifacts();
   await closeTestDb();
 });
@@ -64,6 +78,14 @@ describe("ai planning integration", () => {
         startDate: "2027-05-01",
         endDate: "2027-05-02",
         generatedAt: expect.any(String),
+        budget: expect.anything(),
+        budgetFit: expect.objectContaining({
+          level: expect.any(String),
+          perDayBudget: expect.any(Number),
+          isApproximate: true,
+          reasoning: expect.any(String),
+        }),
+        budgetWarnings: expect.any(Array),
         strategy: expect.objectContaining({
           mode: expect.any(String),
           provider: expect.any(String),
@@ -102,10 +124,16 @@ describe("ai planning integration", () => {
             attraction: expect.objectContaining({
               id: expect.any(String),
               destinationId: seedData.destinations.bali.id,
+              latitude: expect.any(String),
+              longitude: expect.any(String),
+              fullAddress: expect.any(String),
+              enrichment: expect.any(Object),
               categories: expect.any(Array),
             }),
           })
         );
+        expect(item.attraction.enrichment).toHaveProperty("externalSource");
+        expect(item.attraction.enrichment).toHaveProperty("externalPlaceId");
         expect(item.startTime < item.endTime).toBe(true);
       });
 
@@ -119,6 +147,46 @@ describe("ai planning integration", () => {
     expect(itineraryResponse.status).toBe(200);
     expect(itineraryResponse.body.data.hasItinerary).toBe(false);
     expect(itineraryResponse.body.data.days).toEqual([]);
+  });
+
+  test("POST /api/trips/:tripId/ai-generate returns explicit low-budget warnings without failing", async () => {
+    const auth = await registerAndLogin(request, app, { label: "ai-preview-low-budget" });
+    const trip = await createTrip(
+      auth.accessToken,
+      buildAiTripPayload({
+        destinationId: seedData.destinations.bali.id,
+        startDate: "2027-05-05",
+        endDate: "2027-05-07",
+        budget: 450000,
+        preferenceCategoryIds: [
+          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.food.id,
+        ],
+      })
+    );
+
+    const previewResponse = await request(app)
+      .post(`/api/trips/${trip.body.data.id}/ai-generate`)
+      .set(authHeader(auth.accessToken));
+
+    expect(previewResponse.status).toBe(200);
+    expect(Number(previewResponse.body.data.budget)).toBe(450000);
+    expect(previewResponse.body.data.budgetFit).toEqual(
+      expect.objectContaining({
+        level: "very_low",
+        perDayBudget: 150000,
+        isApproximate: true,
+      })
+    );
+    expect(previewResponse.body.data.budgetWarnings).toEqual(
+      expect.arrayContaining([
+        "Trip budget is very low relative to 3 day(s) of travel (about 150,000 per day).",
+        "Budget fit is approximate because attraction-level pricing, transport, food, and lodging costs are not stored in the current catalog yet.",
+      ])
+    );
+    expect(previewResponse.body.data.warnings).toEqual(
+      expect.arrayContaining(previewResponse.body.data.budgetWarnings)
+    );
   });
 
   test("generated preview days can be saved into the itinerary and retain ai_assisted source", async () => {
@@ -224,4 +292,3 @@ describe("ai planning integration", () => {
     expect(missingTripResponse.body.message).toBe("Trip not found.");
   });
 });
-

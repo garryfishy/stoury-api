@@ -22,16 +22,20 @@
 - Attractions are filtered by trip destination only.
 - Preference categories are mapped onto attraction categories for ranking, but the generator can fall back to destination-wide ranking if strict preference matches are insufficient.
 - Opening hours, estimated duration, rating, and duplicate-attraction rules are applied before the preview is returned.
+- The planner also reads `trip.budget` and returns a rough `budgetFit` signal plus `budgetWarnings`. This is heuristic only: it uses trip duration and stored trip budget, not attraction-level pricing.
 - If an attraction has no usable `openingHours` payload, the scheduler falls back to the default planning window of `09:00-18:00` for preview generation.
 - Preview generation targets up to `4` items per day. If the destination catalog or opening-hours rules cannot support that coverage, the response is returned as a partial preview instead of hard-failing, and the `warnings`, `isPartial`, `coverage`, and per-day `isPartial` fields explain the shortfall.
+- Budget warnings stay explicit about the limitation that attraction, transport, food, and lodging prices are not stored in the current MVP catalog, so previews never claim an exact spend estimate.
 - The preview response is validated against a strict schema before leaving the service.
 
 ## Provider boundary
 
 - Provider-specific code is isolated behind `rankCandidates`.
 - The default provider is deterministic and local.
-- A Hugging Face adapter shape exists for future reranking. It only receives already-known candidate IDs and metadata, and it may optionally return a short explanation that is surfaced in the preview strategy payload.
+- A real Hugging Face provider can be enabled with `AI_PLANNING_PROVIDER=hugging-face` plus the `HF_*` env vars. It only receives already-known candidate IDs, trip context (including budget), and metadata, and it may optionally return a short explanation that is surfaced in the preview strategy payload.
+- A real Groq provider can be enabled with `AI_PLANNING_PROVIDER=groq` plus the `GROQ_*` env vars. The recommended current model is `llama-3.1-8b-instant`, using Groq's OpenAI-compatible chat API in JSON-object mode plus the same hallucination guard. Budget is still a soft reranking hint only.
 - Provider output is normalized against the DB candidate list, so unknown attraction IDs are discarded. This prevents hallucinated attractions from leaking into the API response.
+- If Hugging Face times out, returns malformed content, or is otherwise unavailable, the provider falls back to deterministic ranking and the preview request still succeeds.
 - Attraction enrichment stays upstream in the curated attraction catalog. The itinerary response already carries attraction summary fields and categories, so future enrichment can extend those records without changing the save flow shape.
 
 ### Adding a provider
@@ -59,4 +63,4 @@
 - No automatic save during AI generation.
 - No draft/version history.
 - No granular add/remove/move itinerary mutation endpoints.
-- No live Hugging Face inference call in the default runtime path.
+- No free-form itinerary generation or model-authored attraction creation.

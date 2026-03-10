@@ -4,6 +4,69 @@ process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh
 const { createAttractionsService } = require("../src/modules/attractions/attractions.service");
 
 describe("attractions service", () => {
+  test("listByDestination paginates attractions and returns pagination metadata", async () => {
+    const destinationId = "22222222-2222-4222-8222-222222222222";
+    const db = {
+      Destination: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: destinationId,
+          name: "Batam",
+          slug: "batam",
+          isActive: true,
+        }),
+      },
+      Attraction: {
+        count: jest.fn().mockResolvedValue(3),
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            destinationId,
+            name: "Pantai Nongsa",
+            slug: "pantai-nongsa",
+            description: "Beach",
+            fullAddress: "Batam, Indonesia",
+            latitude: "1.1870000",
+            longitude: "104.1190000",
+            estimatedDurationMinutes: 120,
+            openingHours: {},
+            rating: "4.5",
+            thumbnailImageUrl: null,
+            mainImageUrl: null,
+            metadata: {},
+          },
+        ]),
+      },
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+    });
+
+    const result = await attractionsService.listByDestination(destinationId, {
+      page: 2,
+      limit: 1,
+    });
+
+    expect(result.destination).toEqual(
+      expect.objectContaining({
+        id: destinationId,
+        slug: "batam",
+      })
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.pagination).toEqual({
+      page: 2,
+      limit: 1,
+      total: 3,
+      totalPages: 3,
+    });
+    expect(db.Attraction.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 1,
+        offset: 1,
+      })
+    );
+  });
+
   test("listByDestination rejects unknown category filters", async () => {
     const destinationId = "22222222-2222-4222-8222-222222222222";
     const db = {
@@ -27,9 +90,9 @@ describe("attractions service", () => {
     });
 
     await expect(
-      attractionsService.listByDestination(destinationId, [
-        "77777777-7777-4777-8777-777777777777",
-      ])
+      attractionsService.listByDestination(destinationId, {
+        categoryIds: ["77777777-7777-4777-8777-777777777777"],
+      })
     ).rejects.toMatchObject({
       message: "One or more attraction categories do not exist.",
       statusCode: 422,

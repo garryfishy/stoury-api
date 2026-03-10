@@ -6,6 +6,10 @@ const {
   closeTestDb,
   ensureTestDbReady,
 } = require("./helpers/db");
+const {
+  restoreDestinationStates,
+  setDestinationActiveState,
+} = require("./helpers/destination-state");
 const { loadSeedData } = require("./helpers/seed-data");
 const {
   buildAiTripPayload,
@@ -24,7 +28,12 @@ beforeAll(async () => {
   seedData = await loadSeedData();
 });
 
+afterEach(async () => {
+  seedData = await restoreDestinationStates();
+});
+
 afterAll(async () => {
+  seedData = await restoreDestinationStates();
   await cleanupTestArtifacts();
   await closeTestDb();
 });
@@ -46,7 +55,7 @@ describe("trips integration", () => {
     const response = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.bali.id,
+        destinationId: seedData.destinations.batam.id,
       })
     );
 
@@ -57,7 +66,7 @@ describe("trips integration", () => {
         id: expect.any(String),
         title: "Bali Getaway",
         userId: auth.user.id,
-        destinationId: seedData.destinations.bali.id,
+        destinationId: seedData.destinations.batam.id,
         planningMode: "manual",
         startDate: "2026-06-01",
         endDate: "2026-06-03",
@@ -65,7 +74,7 @@ describe("trips integration", () => {
         budget: "5000000.00",
         hasItinerary: false,
         destination: expect.objectContaining({
-          slug: "bali",
+          slug: "batam",
         }),
         preferences: [
           expect.objectContaining({ slug: "nature" }),
@@ -81,7 +90,8 @@ describe("trips integration", () => {
     const response = await createTrip(
       auth.accessToken,
       buildAiTripPayload({
-        destinationId: seedData.destinations.yogyakarta.id,
+        destinationId: seedData.destinations.batam.id,
+        title: "Batam Culture Trip",
         preferenceCategoryIds: [
           seedData.preferenceCategories.culture.id,
           seedData.preferenceCategories.food.id,
@@ -92,9 +102,11 @@ describe("trips integration", () => {
     expect(response.status).toBe(201);
     expect(response.body.data).toEqual(
       expect.objectContaining({
+        title: "Batam Culture Trip",
         planningMode: "ai_assisted",
-        destinationId: seedData.destinations.yogyakarta.id,
+        destinationId: seedData.destinations.batam.id,
         durationDays: 3,
+        budget: "3000000.00",
         preferences: [
           expect.objectContaining({ slug: "culture" }),
           expect.objectContaining({ slug: "food" }),
@@ -117,7 +129,7 @@ describe("trips integration", () => {
       "invalid date range",
       () =>
         buildManualTripPayload({
-          destinationId: seedData.destinations.bali.id,
+          destinationId: seedData.destinations.batam.id,
           startDate: "2026-06-05",
           endDate: "2026-06-03",
         }),
@@ -128,7 +140,7 @@ describe("trips integration", () => {
       "unknown preference categories",
       () =>
         buildAiTripPayload({
-          destinationId: seedData.destinations.bali.id,
+          destinationId: seedData.destinations.batam.id,
           preferenceCategoryIds: ["11111111-1111-4111-8111-111111111111"],
         }),
       422,
@@ -162,7 +174,7 @@ describe("trips integration", () => {
       "invalid planning mode",
       () => ({
         ...buildManualTripPayload({
-          destinationId: seedData.destinations.bali.id,
+          destinationId: seedData.destinations.batam.id,
         }),
         planningMode: "unsupported",
       }),
@@ -172,7 +184,7 @@ describe("trips integration", () => {
       "negative budget",
       () => ({
         ...buildManualTripPayload({
-          destinationId: seedData.destinations.bali.id,
+          destinationId: seedData.destinations.batam.id,
         }),
         budget: -1,
       }),
@@ -182,7 +194,7 @@ describe("trips integration", () => {
       "custom preferences without ids",
       () => ({
         ...buildAiTripPayload({
-          destinationId: seedData.destinations.bali.id,
+          destinationId: seedData.destinations.batam.id,
         }),
         preferenceCategoryIds: undefined,
       }),
@@ -201,14 +213,33 @@ describe("trips integration", () => {
     );
   });
 
+  test("rejects trip creation for inactive destinations with a clear message", async () => {
+    seedData = await setDestinationActiveState("yogyakarta", false);
+    const auth = await registerAndLogin(request, app, { label: "trips-inactive-create" });
+
+    const response = await createTrip(
+      auth.accessToken,
+      buildManualTripPayload({
+        destinationId: seedData.destinations.yogyakarta.id,
+        title: "Blocked Inactive Destination",
+      })
+    );
+
+    expect(response.status).toBe(422);
+    expect(response.body.message).toBe(
+      "Destination is inactive and cannot be used for trip planning."
+    );
+  });
+
   test("enforces overlap conflicts only for the same destination", async () => {
+    seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-overlap" });
 
     const firstTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.bali.id,
-        title: "First Bali Trip",
+        destinationId: seedData.destinations.batam.id,
+        title: "First Batam Trip",
       })
     );
 
@@ -217,8 +248,8 @@ describe("trips integration", () => {
     const conflictingTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.bali.id,
-        title: "Conflicting Bali Trip",
+        destinationId: seedData.destinations.batam.id,
+        title: "Conflicting Batam Trip",
       })
     );
 
@@ -230,8 +261,8 @@ describe("trips integration", () => {
     const differentDestinationTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.batam.id,
-        title: "Batam Same Dates",
+        destinationId: seedData.destinations.bali.id,
+        title: "Bali Same Dates",
       })
     );
 
@@ -240,8 +271,8 @@ describe("trips integration", () => {
     const nonOverlappingTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.bali.id,
-        title: "Later Bali Trip",
+        destinationId: seedData.destinations.batam.id,
+        title: "Later Batam Trip",
         startDate: "2026-06-05",
         endDate: "2026-06-07",
       })
@@ -251,6 +282,7 @@ describe("trips integration", () => {
   });
 
   test("GET /api/trips lists only the current user's trips in newest-first order with hasItinerary", async () => {
+    seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-list-owner" });
     const otherUser = await registerAndLogin(request, app, { label: "trips-list-other" });
 
@@ -266,7 +298,7 @@ describe("trips integration", () => {
     const newerTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
-        destinationId: seedData.destinations.yogyakarta.id,
+        destinationId: seedData.destinations.batam.id,
         title: "Newer Trip",
         startDate: "2026-08-05",
         endDate: "2026-08-06",
@@ -299,12 +331,14 @@ describe("trips integration", () => {
     ]);
     expect(response.body.data[0]).toEqual(
       expect.objectContaining({
+        budget: "5000000.00",
         hasItinerary: false,
-        destination: expect.objectContaining({ slug: "yogyakarta" }),
+        destination: expect.objectContaining({ slug: "batam" }),
       })
     );
     expect(response.body.data[1]).toEqual(
       expect.objectContaining({
+        budget: "5000000.00",
         hasItinerary: true,
         destination: expect.objectContaining({ slug: "bali" }),
       })
@@ -319,6 +353,7 @@ describe("trips integration", () => {
   });
 
   test("GET /api/trips/:tripId fetches a trip and hides other users' trips", async () => {
+    seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-detail-owner" });
     const otherUser = await registerAndLogin(request, app, { label: "trips-detail-other" });
 
@@ -350,6 +385,7 @@ describe("trips integration", () => {
       expect.objectContaining({
         id: ownTrip.body.data.id,
         title: "Owned Trip",
+        budget: "5000000.00",
         destination: expect.objectContaining({ slug: "bali" }),
         preferences: [],
       })
@@ -376,6 +412,7 @@ describe("trips integration", () => {
   });
 
   test("PATCH /api/trips updates mutable fields and validates overlap plus ownership", async () => {
+    seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-update-owner" });
     const otherUser = await registerAndLogin(request, app, { label: "trips-update-other" });
 
@@ -450,7 +487,37 @@ describe("trips integration", () => {
     );
   });
 
+  test("PATCH /api/trips rejects switching to an inactive destination", async () => {
+    const auth = await registerAndLogin(request, app, { label: "trips-inactive-update" });
+    seedData = await setDestinationActiveState("yogyakarta", false);
+
+    const targetTrip = await createTrip(
+      auth.accessToken,
+      buildManualTripPayload({
+        destinationId: seedData.destinations.batam.id,
+        title: "Trip With Active Destination",
+        startDate: "2026-10-20",
+        endDate: "2026-10-22",
+      })
+    );
+
+    expect(targetTrip.status).toBe(201);
+
+    const response = await request(app)
+      .patch(`/api/trips/${targetTrip.body.data.id}`)
+      .set(authHeader(auth.accessToken))
+      .send({
+        destinationId: seedData.destinations.yogyakarta.id,
+      });
+
+    expect(response.status).toBe(422);
+    expect(response.body.message).toBe(
+      "Destination is inactive and cannot be used for trip planning."
+    );
+  });
+
   test("PATCH /api/trips restricts destination, planningMode, and dates after an itinerary is saved but still allows title and budget", async () => {
+    seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-update-locked" });
 
     const tripResponse = await createTrip(

@@ -12,10 +12,12 @@ const ensureTestDbReady = async () => {
 
   const [
     destinationCount,
+    activeDestinationCount,
     attractionCount,
     preferenceCategoryCount,
     attractionCategoryCount,
   ] = await Promise.all([
+    db.Destination.count(),
     db.Destination.count({ where: { isActive: true } }),
     db.Attraction.count({ where: { isActive: true } }),
     db.PreferenceCategory.count({ where: { isActive: true } }),
@@ -23,7 +25,8 @@ const ensureTestDbReady = async () => {
   ]);
 
   expect(destinationCount).toBeGreaterThanOrEqual(3);
-  expect(attractionCount).toBeGreaterThanOrEqual(30);
+  expect(activeDestinationCount).toBeGreaterThanOrEqual(1);
+  expect(attractionCount).toBeGreaterThanOrEqual(72);
   expect(preferenceCategoryCount).toBeGreaterThanOrEqual(8);
   expect(attractionCategoryCount).toBeGreaterThanOrEqual(10);
 };
@@ -165,4 +168,3 @@ module.exports = {
   db,
   ensureTestDbReady,
 };
-

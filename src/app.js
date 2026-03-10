@@ -6,6 +6,10 @@ const env = require("./config/env");
 const { setupOpenApi } = require("./docs/openapi");
 const { errorHandler } = require("./middlewares/error-handler");
 const { notFoundHandler } = require("./middlewares/not-found");
+const {
+  getAdminEnrichmentRuntimeStatus,
+  logAdminEnrichmentStartupStatus,
+} = require("./modules/admin-attractions/admin-attractions.runtime");
 const { apiRouter } = require("./routes");
 
 const app = express();
@@ -28,15 +32,26 @@ app.use(helmet(helmetOptions));
 app.use(express.json());
 if (env.NODE_ENV !== "test") {
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
+  logAdminEnrichmentStartupStatus();
 }
 
 app.get("/health", (_req, res) => {
+  const adminEnrichment = getAdminEnrichmentRuntimeStatus();
+
   res.json({
     success: true,
     message: "Service is healthy.",
     data: {
       app: env.APP_NAME,
       environment: env.NODE_ENV,
+      features: {
+        adminEnrichment: {
+          enabled: adminEnrichment.enabled,
+          status: adminEnrichment.status,
+          featureFlagEnabled: adminEnrichment.featureFlagEnabled,
+          googlePlacesConfigured: adminEnrichment.googlePlacesConfigured,
+        },
+      },
     },
   });
 });

@@ -1,6 +1,7 @@
 require("./test-env");
 
 const { TEST_EMAIL_PREFIX } = require("./db");
+const { db } = require("./db");
 
 const createTestEmail = (label = "user") =>
   `${TEST_EMAIL_PREFIX}${label}-${Date.now()}-${Math.random()
@@ -26,6 +27,38 @@ const registerAndLogin = async (request, app, overrides = {}) => {
   };
 };
 
+const loginWithCredentials = async (request, app, { email, password }) => {
+  const response = await request(app).post("/api/auth/login").send({
+    email,
+    password,
+  });
+
+  return response.body.data;
+};
+
+const grantRole = async (userId, roleCode) => {
+  const role = await db.Role.findOne({
+    where: {
+      code: roleCode,
+    },
+  });
+
+  if (!role) {
+    throw new Error(`Role ${roleCode} not found in the test database.`);
+  }
+
+  await db.UserRole.findOrCreate({
+    where: {
+      userId,
+      roleId: role.id,
+    },
+    defaults: {
+      userId,
+      roleId: role.id,
+    },
+  });
+};
+
 const authHeader = (accessToken) => ({
   Authorization: `Bearer ${accessToken}`,
 });
@@ -33,6 +66,7 @@ const authHeader = (accessToken) => ({
 module.exports = {
   authHeader,
   createTestEmail,
+  grantRole,
+  loginWithCredentials,
   registerAndLogin,
 };
-

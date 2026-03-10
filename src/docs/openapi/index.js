@@ -10,6 +10,7 @@ const { usersPaths } = require("./paths/users");
 const { preferencesPaths } = require("./paths/preferences");
 const { destinationsPaths } = require("./paths/destinations");
 const { attractionsPaths } = require("./paths/attractions");
+const { adminAttractionsPaths } = require("./paths/admin-attractions");
 const { tripsPaths } = require("./paths/trips");
 const { itinerariesPaths } = require("./paths/itineraries");
 const { aiPlanningPaths } = require("./paths/ai-planning");
@@ -34,6 +35,11 @@ const baseTags = [
   {
     name: "Attractions",
     description: "Public curated attraction catalog endpoints.",
+  },
+  {
+    name: "Admin Attractions",
+    description:
+      "Internal admin-only attraction enrichment and operational catalog endpoints. This feature may be disabled by environment.",
   },
   {
     name: "Trips",
@@ -81,7 +87,7 @@ const buildOpenApiDocument = ({
     title: "Stoury API",
     version: "0.1.0",
     description:
-      "MVP travel planner backend covering authentication, profile, preferences, destinations, attractions, trips, itinerary save/fetch, and AI itinerary preview flows.",
+      "MVP travel planner backend covering authentication, profile, preferences, destinations, attractions, admin attraction enrichment, trips, itinerary save/fetch, and AI itinerary preview flows.",
   },
   servers: buildServers(),
   tags: [...baseTags, ...extraTags],
@@ -106,6 +112,7 @@ const buildOpenApiDocument = ({
     ...preferencesPaths,
     ...destinationsPaths,
     ...attractionsPaths,
+    ...adminAttractionsPaths,
     ...tripsPaths,
     ...itinerariesPaths,
     ...aiPlanningPaths,

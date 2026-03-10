@@ -15,6 +15,8 @@ const tripsPaths = {
     get: {
       tags: ["Trips"],
       summary: "List the authenticated user's trips",
+      description:
+        "Returns both manual and ai_assisted trips for the authenticated user, including the stored trip budget on every item.",
       security: [{ bearerAuth: [] }],
       responses: {
         200: successResponse(
@@ -30,37 +32,37 @@ const tripsPaths = {
     },
     post: {
       tags: ["Trips"],
-      summary: "Create a trip and snapshot preferences",
+      summary: "Create a manual or AI-assisted trip and snapshot preferences",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         description:
-          "Create a trip and snapshot either the current profile preferences or a custom set of preference category IDs.",
+          "Create either a `manual` or `ai_assisted` trip. Both planning modes use the same required trip-level `budget` field, and the trip always stores that budget even if AI preview is never used. Only active destinations can be used for trip planning.",
         content: {
           "application/json": {
             schema: schemaRef("CreateTripRequest"),
             examples: {
-              profilePreferences: {
-                summary: "Create trip using current profile preferences",
+              manualTrip: {
+                summary: "Create a manual trip with budget",
                 value: {
                   title: "Batam long weekend",
                   destinationId: trip.destinationId,
-                  planningMode: trip.planningMode,
+                  planningMode: "manual",
                   startDate: trip.startDate,
                   endDate: trip.endDate,
                   budget: 2500000,
                   preferenceSource: "profile",
                 },
               },
-              customPreferences: {
-                summary: "Create trip using custom preference categories",
+              aiAssistedTrip: {
+                summary: "Create an AI-assisted trip with budget",
                 value: {
-                  title: "Batam long weekend",
+                  title: "Batam AI long weekend",
                   destinationId: trip.destinationId,
-                  planningMode: trip.planningMode,
-                  startDate: trip.startDate,
-                  endDate: trip.endDate,
-                  budget: 2500000,
+                  planningMode: "ai_assisted",
+                  startDate: "2026-05-15",
+                  endDate: "2026-05-17",
+                  budget: 3500000,
                   preferenceSource: "custom",
                   preferenceCategoryIds: preferences.map((item) => item.id),
                 },
@@ -83,8 +85,8 @@ const tripsPaths = {
           )
         ),
         422: errorResponse(
-          "Invalid destination or preference IDs.",
-          errorExample("Destination not found.")
+          "Invalid, inactive, or unknown destination or preference IDs.",
+          errorExample("Destination is inactive and cannot be used for trip planning.")
         ),
       },
     },
@@ -110,7 +112,7 @@ const tripsPaths = {
       tags: ["Trips"],
       summary: "Update an existing trip",
       description:
-        "Title, budget, and preference snapshots are always editable. Destination, planning mode, and date range changes are rejected once an itinerary exists.",
+        "Title, budget, and preference snapshots are always editable. The same trip-level budget field is used for both manual and ai_assisted trips. Switching a trip to an inactive destination is rejected. Destination, planning mode, and date range changes are rejected once an itinerary exists.",
       security: [{ bearerAuth: [] }],
       parameters: [parameterRef("TripIdParam")],
       requestBody: requestBody(schemaRef("UpdateTripRequest"), {
@@ -136,7 +138,10 @@ const tripsPaths = {
             "Trips with an existing itinerary can only update title, budget, and preference snapshots in MVP."
           )
         ),
-        422: responseRef("ValidationError"),
+        422: errorResponse(
+          "Invalid, inactive, or unknown trip update payload.",
+          errorExample("Destination is inactive and cannot be used for trip planning.")
+        ),
       },
     },
   },

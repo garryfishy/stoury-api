@@ -52,10 +52,17 @@ const attractionSummaryResponseSchema = z.object({
   destinationId: uuidSchema,
   name: z.string(),
   slug: z.string(),
+  fullAddress: z.string().nullable(),
+  latitude: numericLikeSchema.nullable(),
+  longitude: numericLikeSchema.nullable(),
   estimatedDurationMinutes: z.number().int().positive().nullable(),
   rating: numericLikeSchema.nullable(),
   thumbnailImageUrl: z.string().nullable(),
   mainImageUrl: z.string().nullable(),
+  enrichment: z.object({
+    externalSource: z.string().nullable(),
+    externalPlaceId: z.string().nullable(),
+  }),
   categories: z.array(itineraryCategoryResponseSchema),
 });
 

@@ -1,6 +1,11 @@
 const { Op } = require("sequelize");
 const { getDb, getRequiredModel } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
+const {
+  buildPaginationMeta,
+  getPaginationOffset,
+  normalizePagination,
+} = require("../../utils/pagination");
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
   findDestinationByIdOrSlug,
@@ -13,15 +18,21 @@ const {
 } = require("./attractions.helpers");
 
 const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
-  async listByDestination(destinationId, categoryIds = []) {
+  async listByDestination(destinationId, query = {}) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
     const Attraction = getRequiredModel(db, "Attraction");
     const AttractionCategory = db.AttractionCategory || null;
-    const normalizedCategoryIds = Array.isArray(categoryIds)
-      ? categoryIds
-      : typeof categoryIds === "string"
-        ? categoryIds
+    const pagination = normalizePagination({
+      page: query.page,
+      limit: query.limit,
+      defaultLimit: 12,
+    });
+    const rawCategoryIds = query.categoryIds;
+    const normalizedCategoryIds = Array.isArray(rawCategoryIds)
+      ? rawCategoryIds
+      : typeof rawCategoryIds === "string"
+        ? rawCategoryIds
             .split(",")
             .map((value) => value.trim())
             .filter(Boolean)
@@ -29,7 +40,7 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
 
     const destination = await Destination.findByPk(destinationId);
 
-    if (!destination || !destination.isActive) {
+    if (!destination) {
       throw new AppError("Destination not found.", 404);
     }
 
@@ -71,16 +82,23 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
         return {
           destination: serializeDestination(destination),
           items: [],
+          pagination: buildPaginationMeta({
+            page: pagination.page,
+            limit: pagination.limit,
+            total: 0,
+          }),
         };
       }
 
       where.id = { [Op.in]: attractionIds };
     }
 
-    // TODO: Add pagination before the public attraction catalog grows beyond MVP scale.
+    const total = await Attraction.count({ where });
     const attractions = await Attraction.findAll({
       where,
       order: [["name", "ASC"]],
+      limit: pagination.limit,
+      offset: getPaginationOffset(pagination),
     });
 
     const categoriesByAttractionId = await loadAttractionCategoriesByAttractionIds(
@@ -95,6 +113,11 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
           categories: categoriesByAttractionId.get(readRecordValue(attraction, ["id"])) || [],
         })
       ),
+      pagination: buildPaginationMeta({
+        page: pagination.page,
+        limit: pagination.limit,
+        total,
+      }),
     };
   },
 

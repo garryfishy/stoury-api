@@ -1,5 +1,6 @@
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "test-access-secret";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh-secret";
+process.env.AI_PLANNING_PROVIDER = "deterministic";
 
 const { createAiPlanningService } = require("../src/modules/ai-planning/ai-planning.service");
 
@@ -18,6 +19,9 @@ const attractions = [
     destinationId: trip.destinationId,
     name: "Pantai Nongsa",
     slug: "pantai-nongsa",
+    fullAddress: "Nongsa, Batam, Kepulauan Riau, Indonesia",
+    latitude: "1.1870000",
+    longitude: "104.1190000",
     estimatedDurationMinutes: 120,
     rating: "4.5",
     openingHours: {
@@ -26,12 +30,17 @@ const attractions = [
     },
     thumbnailImageUrl: null,
     mainImageUrl: null,
+    externalSource: "google_places",
+    externalPlaceId: "ChIJexamplePantaiNongsa",
   },
   {
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     destinationId: trip.destinationId,
     name: "Mega Wisata Ocarina",
     slug: "mega-wisata-ocarina",
+    fullAddress: "Sadai, Bengkong, Batam, Kepulauan Riau, Indonesia",
+    latitude: "1.1565000",
+    longitude: "104.0443000",
     estimatedDurationMinutes: 150,
     rating: "4.3",
     openingHours: {
@@ -40,6 +49,8 @@ const attractions = [
     },
     thumbnailImageUrl: null,
     mainImageUrl: null,
+    externalSource: null,
+    externalPlaceId: null,
   },
 ];
 
@@ -105,8 +116,16 @@ describe("ai planning service", () => {
       expect.objectContaining({
         source: "ai_assisted",
         attractionId: expect.any(String),
+        attraction: expect.objectContaining({
+          fullAddress: expect.any(String),
+          latitude: expect.any(String),
+          longitude: expect.any(String),
+          enrichment: expect.any(Object),
+        }),
       })
     );
+    expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalSource");
+    expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalPlaceId");
     expect(result.strategy).toEqual({
       mode: "deterministic_only",
       provider: "deterministic",

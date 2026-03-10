@@ -24,14 +24,19 @@ const {
   sortCandidatesDeterministically,
 } = require("./ai-planning.helpers");
 const {
-  deterministicPlanningProvider,
+  buildBudgetAnalysis,
+  getBudgetNumber,
+  getPerDayBudget,
+} = require("./ai-planning.budget");
+const {
   normalizeProviderRanking,
 } = require("./ai-planning.providers");
+const { createAiPlanningProvider } = require("./ai-planning.factory");
 const { aiPlanningPreviewSchema } = require("./ai-planning.validators");
 
 const createAiPlanningService = ({
   dbProvider = getDb,
-  planningProvider = deterministicPlanningProvider,
+  planningProvider = createAiPlanningProvider(),
 } = {}) => {
   const getAiPlanningModels = (db) => ({
     Attraction: getRequiredModel(db, "Attraction"),
@@ -124,12 +129,23 @@ const createAiPlanningService = ({
       rating: candidate.rating,
       estimatedDurationMinutes: candidate.durationMinutes,
     }));
+    const tripDurationDays = dateDiffInDaysInclusive(
+      readRecordValue(trip, ["startDate"]),
+      readRecordValue(trip, ["endDate"])
+    );
+    const budgetValue = getBudgetNumber(readRecordValue(trip, ["budget"], null));
+
     const providerResult = await planningProvider.rankCandidates({
       trip: {
         tripId: readRecordValue(trip, ["id"]),
         destinationId: readRecordValue(trip, ["destinationId"]),
         startDate: readRecordValue(trip, ["startDate"], ""),
         endDate: readRecordValue(trip, ["endDate"], ""),
+        budget: readRecordValue(trip, ["budget"], null),
+        budgetPerDay:
+          budgetValue === null
+            ? null
+            : getPerDayBudget(budgetValue, tripDurationDays),
       },
       preferences: preferences.map((preference) => ({
         id: readRecordValue(preference, ["id"]),
@@ -166,6 +182,7 @@ const createAiPlanningService = ({
   };
 
   const buildWarnings = ({
+    budgetWarnings = [],
     coverage,
     preferences,
     preferredCategorySlugs,
@@ -201,7 +218,7 @@ const createAiPlanningService = ({
       );
     }
 
-    return warnings;
+    return [...warnings, ...budgetWarnings];
   };
 
   const buildPreviewDays = ({ trip, rankedCandidates }) => {
@@ -351,7 +368,13 @@ const createAiPlanningService = ({
         trip,
         rankedCandidates,
       });
+      const budgetAnalysis = buildBudgetAnalysis({
+        trip,
+        dayCount: preview.coverage.requestedDayCount,
+        isPartial: preview.isPartial,
+      });
       const warnings = buildWarnings({
+        budgetWarnings: budgetAnalysis.budgetWarnings,
         coverage: preview.coverage,
         preferences,
         preferredCategorySlugs,
@@ -360,6 +383,9 @@ const createAiPlanningService = ({
 
       return aiPlanningPreviewSchema.parse(
         buildPreviewPayload({
+          budget: budgetAnalysis.budget,
+          budgetFit: budgetAnalysis.budgetFit,
+          budgetWarnings: budgetAnalysis.budgetWarnings,
           coverage: preview.coverage,
           isPartial: preview.isPartial,
           trip,

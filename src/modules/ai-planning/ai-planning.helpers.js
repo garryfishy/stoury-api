@@ -100,6 +100,9 @@ const buildPlanningStrategy = ({
 });
 
 const buildPreviewPayload = ({
+  budget,
+  budgetFit,
+  budgetWarnings,
   coverage,
   isPartial,
   trip,
@@ -116,6 +119,9 @@ const buildPreviewPayload = ({
   generatedAt: new Date().toISOString(),
   preferences: preferences.map(serializePreferenceCategory),
   strategy,
+  budget,
+  budgetFit,
+  budgetWarnings,
   isPartial,
   coverage,
   warnings,

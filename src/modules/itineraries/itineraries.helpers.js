@@ -165,6 +165,9 @@ const serializeAttractionSummary = (record, categories = []) => ({
   destinationId: readRecordValue(record, ["destinationId"]),
   name: readRecordValue(record, ["name"], ""),
   slug: readRecordValue(record, ["slug"], ""),
+  fullAddress: readRecordValue(record, ["fullAddress"], null),
+  latitude: readRecordValue(record, ["latitude"], null),
+  longitude: readRecordValue(record, ["longitude"], null),
   estimatedDurationMinutes: readRecordValue(
     record,
     ["estimatedDurationMinutes"],
@@ -173,6 +176,10 @@ const serializeAttractionSummary = (record, categories = []) => ({
   rating: readRecordValue(record, ["rating"], null),
   thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null),
   mainImageUrl: readRecordValue(record, ["mainImageUrl"], null),
+  enrichment: {
+    externalSource: readRecordValue(record, ["externalSource"], null),
+    externalPlaceId: readRecordValue(record, ["externalPlaceId"], null),
+  },
   categories: categories.map(serializeAttractionCategory),
 });
 

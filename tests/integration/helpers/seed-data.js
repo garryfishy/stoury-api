@@ -9,7 +9,6 @@ const loadSeedData = async () => {
   const [destinations, preferenceCategories, attractionCategories, attractions] =
     await Promise.all([
       db.Destination.findAll({
-        where: { isActive: true },
         order: [["sortOrder", "ASC"], ["name", "ASC"]],
       }),
       db.PreferenceCategory.findAll({

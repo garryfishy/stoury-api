@@ -13,10 +13,23 @@ const attractionsPaths = {
       tags: ["Attractions"],
       summary: "List attractions for a destination",
       description:
-        "Public read-only curated attraction catalog for the MVP. Admin CRUD is intentionally excluded and reserved for a future operational surface.",
+        "Public read-only curated attraction catalog for the MVP. Responses are paginated with top-level metadata. Admin CRUD is intentionally excluded and reserved for a future operational surface.",
       parameters: [
         parameterRef("DestinationIdParam"),
         parameterRef("AttractionCategoryIdsQuery"),
+        parameterRef("PageQuery"),
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          description: "Maximum number of attractions to return per page.",
+          schema: {
+            type: "integer",
+            default: 12,
+            minimum: 1,
+            maximum: 100,
+          },
+        },
       ],
       responses: {
         200: successResponse(
@@ -25,7 +38,13 @@ const attractionsPaths = {
           successExample("Attractions fetched.", {
             destination,
             items: [attraction],
-          })
+          }, {
+            page: 1,
+            limit: 12,
+            total: 1,
+            totalPages: 1,
+          }),
+          schemaRef("PaginationMeta")
         ),
         404: responseRef("NotFound"),
         422: {

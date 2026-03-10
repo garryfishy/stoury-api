@@ -9,6 +9,7 @@ const serializeDestination = (record) => ({
   id: readRecordValue(record, ["id"]),
   name: readRecordValue(record, ["name"], ""),
   slug: readRecordValue(record, ["slug"], ""),
+  isActive: readRecordValue(record, ["isActive"], false),
   description: readRecordValue(record, ["description"], ""),
   destinationType: readRecordValue(record, ["destinationType"], ""),
   countryCode: readRecordValue(record, ["countryCode"], "ID"),
@@ -20,15 +21,27 @@ const serializeDestination = (record) => ({
   metadata: readRecordValue(record, ["metadata"], {}),
 });
 
-const findDestinationByIdOrSlug = async (Destination, idOrSlug) => {
+const findDestinationByIdOrSlug = async (
+  Destination,
+  idOrSlug,
+  { activeOnly = false } = {}
+) => {
+  const where = isUuidIdentifier(idOrSlug)
+    ? { id: String(idOrSlug) }
+    : { slug: idOrSlug };
+
+  if (activeOnly) {
+    where.isActive = true;
+  }
+
   if (isUuidIdentifier(idOrSlug)) {
     return Destination.findOne({
-      where: { id: String(idOrSlug), isActive: true },
+      where,
     });
   }
 
   return Destination.findOne({
-    where: { slug: idOrSlug, isActive: true },
+    where,
   });
 };
 
