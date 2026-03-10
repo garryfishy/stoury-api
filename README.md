@@ -255,6 +255,7 @@ The project includes curated data for:
 - attractions
 - attraction-category mappings
 - a non-production QA user
+- an admin bootstrap user
 
 Seeded MVP destinations:
 
@@ -272,6 +273,13 @@ QA bootstrap user for development/test:
 
 - email: `qa@stoury.local`
 - password: `StouryQA123!`
+
+Admin bootstrap user:
+
+- email: `admin@stoury.co`
+- password: `admin`
+- seeded automatically in development/test
+- for production, only seeded when `SEED_DEFAULT_ADMIN_USER=true`
 
 These seeds are intended to support both manual planning flows and multi-day AI itinerary generation tests.
 

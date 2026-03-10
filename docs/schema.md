@@ -99,6 +99,7 @@ Intentionally not stored for MVP:
 - Destinations: Batam, Yogyakarta, Bali
 - Attractions: 72 curated entries across the three destinations
 - QA user seed: 1 non-production bootstrap user with the default `user` role
+- Admin user seed: 1 bootstrap user with `user` and `admin` roles in development/test, or in production when `SEED_DEFAULT_ADMIN_USER=true`
 
 ## Assumptions left open by product decisions
 
