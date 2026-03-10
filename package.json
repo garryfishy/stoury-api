@@ -1,0 +1,56 @@
+{
+  "name": "stoury-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Travel planner MVP backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "jest --runInBand",
+    "test:integration": "jest --runInBand tests/integration",
+    "db:create": "node scripts/ensure-database.js development",
+    "db:create:test": "node scripts/ensure-database.js test",
+    "db:drop": "sequelize-cli db:drop",
+    "db:drop:test": "sequelize-cli db:drop --env test",
+    "db:init": "npm run db:create && npm run db:migrate && npm run db:seed",
+    "db:init:test": "npm run db:create:test && sequelize-cli db:migrate --env test && sequelize-cli db:seed:all --env test",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
+    "db:seed": "sequelize-cli db:seed:all",
+    "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all",
+    "db:status": "sequelize-cli db:migrate:status",
+    "db:model-check": "node scripts/model-check.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "sequelize-cli": "^6.6.3",
+    "supertest": "^7.1.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/modules/**/*.js",
+      "src/middlewares/**/*.js",
+      "src/utils/**/*.js"
+    ]
+  }
+}
