@@ -1,8 +1,13 @@
 const express = require("express");
 const { validate } = require("../../middlewares/validate");
-const { getAttraction, listByDestination } = require("./attractions.controller");
+const {
+  getAttraction,
+  getAttractionPhoto,
+  listByDestination,
+} = require("./attractions.controller");
 const {
   attractionDetailParamsSchema,
+  attractionPhotoQuerySchema,
   destinationAttractionsParamsSchema,
   listAttractionsQuerySchema,
 } = require("./attractions.validators");
@@ -21,6 +26,14 @@ attractionsRouter.get(
   "/attractions/:idOrSlug",
   validate({ params: attractionDetailParamsSchema }),
   getAttraction
+);
+attractionsRouter.get(
+  "/attractions/:idOrSlug/photo",
+  validate({
+    params: attractionDetailParamsSchema,
+    query: attractionPhotoQuerySchema,
+  }),
+  getAttractionPhoto
 );
 
 module.exports = { attractionsRouter };

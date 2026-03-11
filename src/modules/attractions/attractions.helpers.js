@@ -1,6 +1,42 @@
 const { Op } = require("sequelize");
+const env = require("../../config/env");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
+
+const ATTRACTION_PHOTO_VARIANTS = Object.freeze({
+  thumbnail: "thumbnail",
+  main: "main",
+});
+
+const getPublicApiBaseUrl = () =>
+  String(env.OPENAPI_SERVER_URL || `http://localhost:${env.PORT}`).replace(/\/$/, "");
+
+const buildAttractionPhotoUrl = (
+  record,
+  variant = ATTRACTION_PHOTO_VARIANTS.main
+) => {
+  const attractionId = readRecordValue(record, ["id"], null);
+
+  if (!attractionId) {
+    return null;
+  }
+
+  return `${getPublicApiBaseUrl()}/api/attractions/${encodeURIComponent(
+    String(attractionId)
+  )}/photo?variant=${variant}`;
+};
+
+const resolveAttractionImageUrl = (
+  record,
+  variant = ATTRACTION_PHOTO_VARIANTS.main
+) => {
+  const storedUrl =
+    variant === ATTRACTION_PHOTO_VARIANTS.thumbnail
+      ? readRecordValue(record, ["thumbnailImageUrl"], null)
+      : readRecordValue(record, ["mainImageUrl"], null);
+
+  return storedUrl || buildAttractionPhotoUrl(record, variant);
+};
 
 const serializeAttractionCategory = (record) => ({
   id: readRecordValue(record, ["id"]),
@@ -21,8 +57,11 @@ const serializeAttraction = (record, options = {}) => {
     estimatedDurationMinutes: readRecordValue(record, ["estimatedDurationMinutes"], null),
     openingHours: readRecordValue(record, ["openingHours"], null),
     rating: readRecordValue(record, ["rating"], null),
-    thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null),
-    mainImageUrl: readRecordValue(record, ["mainImageUrl"], null),
+    thumbnailImageUrl: resolveAttractionImageUrl(
+      record,
+      ATTRACTION_PHOTO_VARIANTS.thumbnail
+    ),
+    mainImageUrl: resolveAttractionImageUrl(record, ATTRACTION_PHOTO_VARIANTS.main),
     metadata: readRecordValue(record, ["metadata"], {}),
     enrichment: {
       externalSource: readRecordValue(record, ["externalSource"], null),
@@ -89,7 +128,10 @@ const loadAttractionCategoriesByAttractionIds = async (db, attractionIds) => {
 };
 
 module.exports = {
+  ATTRACTION_PHOTO_VARIANTS,
+  buildAttractionPhotoUrl,
   loadAttractionCategoriesByAttractionIds,
+  resolveAttractionImageUrl,
   serializeAttraction,
   serializeAttractionCategory,
 };

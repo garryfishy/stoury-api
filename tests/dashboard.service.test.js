@@ -105,7 +105,8 @@ describe("dashboard service", () => {
         badge: "Makanan",
         badgeKey: "food",
         rating: 4.8,
-        thumbnailImageUrl: null,
+        thumbnailImageUrl:
+          "http://localhost:3000/api/attractions/1/photo?variant=thumbnail",
       })
     );
     expect(result.featured[1]).toEqual(

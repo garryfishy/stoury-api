@@ -27,8 +27,13 @@ const listAttractionsQuerySchema = buildPaginationQuerySchema({
   q: optionalSearchQuery,
 });
 
+const attractionPhotoQuerySchema = z.object({
+  variant: z.enum(["thumbnail", "main"]).default("main"),
+});
+
 module.exports = {
   attractionDetailParamsSchema: idOrSlugParamSchema,
+  attractionPhotoQuerySchema,
   destinationAttractionsParamsSchema,
   listAttractionsQuerySchema,
 };

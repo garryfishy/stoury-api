@@ -2,6 +2,7 @@ const request = require("supertest");
 const { app } = require("./helpers/app");
 const { closeTestDb, ensureTestDbReady } = require("./helpers/db");
 const { loadSeedData } = require("./helpers/seed-data");
+const { googlePlacesClient } = require("../../src/services/google-places");
 
 let seedData;
 
@@ -13,6 +14,10 @@ const countDestinationAttractions = (destinationId) =>
 beforeAll(async () => {
   await ensureTestDbReady();
   seedData = await loadSeedData();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 afterAll(async () => {
@@ -52,8 +57,8 @@ describe("attractions integration", () => {
         longitude: expect.anything(),
         estimatedDurationMinutes: expect.any(Number),
         rating: expect.anything(),
-        thumbnailImageUrl: null,
-        mainImageUrl: null,
+        thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
+        mainImageUrl: expect.stringContaining("/api/attractions/"),
         categories: expect.arrayContaining([
           expect.objectContaining({
             id: expect.any(String),
@@ -339,6 +344,8 @@ describe("attractions integration", () => {
       expect.objectContaining({
         id: expect.any(String),
         slug: "tanah-lot",
+        thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
+        mainImageUrl: expect.stringContaining("/api/attractions/"),
         destination: expect.objectContaining({
           slug: "bali",
         }),
@@ -362,5 +369,73 @@ describe("attractions integration", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.message).toBe("Attraction not found.");
+  });
+
+  test("GET /api/attractions/:idOrSlug/photo streams a Google photo when a confident match is found", async () => {
+    const targetAttraction = seedData.attractions["tanah-lot"];
+
+    jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([
+      {
+        placeId: "google-photo-place",
+        name: targetAttraction.name,
+        formattedAddress: targetAttraction.fullAddress,
+        location: {
+          latitude: Number(targetAttraction.latitude),
+          longitude: Number(targetAttraction.longitude),
+        },
+        rating: 4.6,
+        userRatingsTotal: 1234,
+        types: ["tourist_attraction"],
+      },
+    ]);
+    jest.spyOn(googlePlacesClient, "getPlaceDetails").mockResolvedValueOnce({
+      placeId: "google-photo-place",
+      photos: [
+        {
+          photoReference: "photo-ref-1",
+        },
+      ],
+    });
+    jest.spyOn(googlePlacesClient, "getPlacePhoto").mockResolvedValueOnce({
+      body: Buffer.from("jpeg-bytes"),
+      contentType: "image/jpeg",
+    });
+
+    const response = await request(app)
+      .get(`/api/attractions/${targetAttraction.id}/photo`)
+      .query({ variant: "thumbnail" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("image/jpeg");
+    expect(googlePlacesClient.textSearch).toHaveBeenCalledTimes(1);
+    expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith(
+      "google-photo-place",
+      { includePhotos: true }
+    );
+    expect(googlePlacesClient.getPlacePhoto).toHaveBeenCalledWith({
+      photoReference: "photo-ref-1",
+      maxWidth: 640,
+    });
+  });
+
+  test("GET /api/attractions/:idOrSlug/photo falls back to an SVG placeholder when no match exists", async () => {
+    const targetAttraction = seedData.attractions["tanah-lot"];
+
+    jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([]);
+
+    const response = await request(app)
+      .get(`/api/attractions/${targetAttraction.id}/photo`)
+      .query({ variant: "main" });
+    const responseText =
+      typeof response.text === "string" && response.text.length
+        ? response.text
+        : Buffer.isBuffer(response.body)
+          ? response.body.toString("utf8")
+          : "";
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("image/svg+xml");
+    expect(responseText).toContain("<svg");
+    expect(responseText).toContain(targetAttraction.name);
   });
 });

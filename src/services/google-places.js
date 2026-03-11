@@ -2,6 +2,17 @@ const env = require("../config/env");
 
 const DEFAULT_TEXT_SEARCH_RADIUS_METERS = 10000;
 
+const normalizePhoto = (payload = {}) => ({
+  photoReference: String(
+    payload.photo_reference || payload.photoReference || ""
+  ).trim(),
+  width: toFiniteNumber(payload.width),
+  height: toFiniteNumber(payload.height),
+  htmlAttributions: Array.isArray(payload.html_attributions)
+    ? payload.html_attributions.filter((value) => typeof value === "string" && value.trim())
+    : [],
+});
+
 const createGooglePlacesError = (
   message,
   { code = "GOOGLE_PLACES_UPSTREAM_ERROR", status = 502, cause, details } = {}
@@ -56,6 +67,11 @@ const normalizePlace = (payload = {}) => {
       payload.user_ratings_total === null
         ? null
         : Number(payload.user_ratings_total),
+    photos: Array.isArray(payload.photos)
+      ? payload.photos
+          .map(normalizePhoto)
+          .filter((photo) => photo.photoReference)
+      : [],
     types: Array.isArray(payload.types) ? payload.types : [],
     url: typeof payload.url === "string" ? payload.url : null,
     websiteUri:
@@ -94,6 +110,7 @@ const createGooglePlacesClient = ({
   timeoutMs = env.GOOGLE_PLACES_TIMEOUT_MS,
   textSearchUrl = env.GOOGLE_PLACES_TEXT_SEARCH_URL,
   detailsUrl = env.GOOGLE_PLACES_DETAILS_URL,
+  photoUrl = env.GOOGLE_PLACES_PHOTO_URL,
   fetchImpl = global.fetch,
 } = {}) => {
   const ensureConfigured = () => {
@@ -214,13 +231,26 @@ const createGooglePlacesClient = ({
         : [];
     },
 
-    async getPlaceDetails(placeId) {
+    async getPlaceDetails(placeId, { includePhotos = false } = {}) {
       const payload = await runRequest({
         operationName: "Google Places details lookup",
         url: buildUrl(detailsUrl, {
           place_id: placeId,
           fields:
-            "place_id,name,formatted_address,geometry/location,rating,user_ratings_total,types,url,website",
+            [
+              "place_id",
+              "name",
+              "formatted_address",
+              "geometry/location",
+              "rating",
+              "user_ratings_total",
+              "types",
+              "url",
+              "website",
+              includePhotos ? "photos" : null,
+            ]
+              .filter(Boolean)
+              .join(","),
           key: apiKey,
         }),
       });
@@ -235,6 +265,82 @@ const createGooglePlacesClient = ({
       }
 
       return details;
+    },
+
+    async getPlacePhoto({ photoReference, maxWidth }) {
+      if (!photoReference) {
+        throw createGooglePlacesError("Google Places photo reference is required.", {
+          code: "GOOGLE_PLACES_INVALID_REQUEST",
+          status: 422,
+        });
+      }
+
+      ensureConfigured();
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetchImpl(
+          buildUrl(photoUrl, {
+            photo_reference: photoReference,
+            maxwidth: maxWidth,
+            key: apiKey,
+          }),
+          {
+            method: "GET",
+            headers: {
+              Accept: "image/*",
+            },
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw createGooglePlacesError("Google Places photo request failed.", {
+            code: "GOOGLE_PLACES_UPSTREAM_ERROR",
+            status: 502,
+            details: {
+              httpStatus: response.status,
+            },
+          });
+        }
+
+        const contentType = String(response.headers.get("content-type") || "").trim();
+        const body = Buffer.from(await response.arrayBuffer());
+
+        if (!body.length) {
+          throw createGooglePlacesError("Google Places photo response was empty.", {
+            code: "GOOGLE_PLACES_INVALID_RESPONSE",
+            status: 502,
+          });
+        }
+
+        return {
+          body,
+          contentType: contentType || "image/jpeg",
+        };
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          throw createGooglePlacesError("Google Places photo request timed out.", {
+            code: "GOOGLE_PLACES_TIMEOUT",
+            status: 504,
+            cause: error,
+          });
+        }
+
+        if (error?.name === "GooglePlacesError") {
+          throw error;
+        }
+
+        throw createGooglePlacesError("Google Places photo request failed.", {
+          code: "GOOGLE_PLACES_UPSTREAM_ERROR",
+          status: 502,
+          cause: error,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
     },
   };
 };

@@ -86,6 +86,12 @@ const envSchema = z.object({
     .string()
     .url()
     .default("https://maps.googleapis.com/maps/api/place/details/json"),
+  GOOGLE_PLACES_PHOTO_URL: z
+    .string()
+    .url()
+    .default("https://maps.googleapis.com/maps/api/place/photo"),
+  GOOGLE_PLACES_PHOTO_THUMBNAIL_MAX_WIDTH: z.coerce.number().int().positive().max(4800).default(640),
+  GOOGLE_PLACES_PHOTO_MAIN_MAX_WIDTH: z.coerce.number().int().positive().max(4800).default(1600),
 });
 
 const parsedEnv = envSchema.safeParse({

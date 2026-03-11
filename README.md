@@ -135,6 +135,7 @@ Mounted routes today:
 - `GET /api/dashboard/home`
 - `GET /api/destinations/:destinationId/attractions`
 - `GET /api/attractions/:idOrSlug`
+- `GET /api/attractions/:idOrSlug/photo`
 - `GET /api/trips`
 - `POST /api/trips`
 - `GET /api/trips/:tripId`

@@ -129,6 +129,8 @@ describe("itineraries integration", () => {
             latitude: expect.any(String),
             longitude: expect.any(String),
             fullAddress: expect.any(String),
+            thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
+            mainImageUrl: expect.stringContaining("/api/attractions/"),
             enrichment: expect.any(Object),
             categories: expect.arrayContaining([
               expect.objectContaining({ slug: "beach" }),

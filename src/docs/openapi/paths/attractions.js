@@ -82,6 +82,54 @@ const attractionsPaths = {
       },
     },
   },
+  "/api/attractions/{idOrSlug}/photo": {
+    get: {
+      tags: ["Attractions"],
+      summary: "Get an attraction image",
+      description:
+        "Returns an attraction image for the requested variant. If a curated/manual image URL exists it is used first; otherwise the backend attempts a Google Places photo lookup and falls back to a generated SVG placeholder when no match or photo is available.",
+      parameters: [
+        parameterRef("IdOrSlugParam"),
+        {
+          name: "variant",
+          in: "query",
+          required: false,
+          description: "Requested image variant.",
+          schema: {
+            type: "string",
+            enum: ["thumbnail", "main"],
+            default: "main",
+          },
+        },
+      ],
+      responses: {
+        200: {
+          description: "Image bytes or SVG placeholder returned successfully.",
+          content: {
+            "image/jpeg": {
+              schema: {
+                type: "string",
+                format: "binary",
+              },
+            },
+            "image/png": {
+              schema: {
+                type: "string",
+                format: "binary",
+              },
+            },
+            "image/svg+xml": {
+              schema: {
+                type: "string",
+              },
+            },
+          },
+        },
+        404: responseRef("NotFound"),
+        422: responseRef("ValidationError"),
+      },
+    },
+  },
 };
 
 module.exports = { attractionsPaths };

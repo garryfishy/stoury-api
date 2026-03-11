@@ -118,6 +118,12 @@ describe("itinerariesService", () => {
     expect(fetched.itineraryId).toBeTruthy();
     expect(fetched.days).toHaveLength(2);
     expect(fetched.days[1].date).toBe("2026-05-11");
+    expect(fetched.days[0].items[0].attraction.thumbnailImageUrl).toBe(
+      `http://localhost:3000/api/attractions/${MUSEUM_ID}/photo?variant=thumbnail`
+    );
+    expect(fetched.days[0].items[0].attraction.mainImageUrl).toBe(
+      `http://localhost:3000/api/attractions/${MUSEUM_ID}/photo?variant=main`
+    );
   });
 
   test("rejects duplicate attractions anywhere in the trip payload", async () => {

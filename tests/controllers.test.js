@@ -32,6 +32,7 @@ jest.mock("../src/modules/attractions/attractions.service", () => ({
   attractionsService: {
     listByDestination: jest.fn(),
     getDetail: jest.fn(),
+    getPhotoAsset: jest.fn(),
   },
 }));
 
@@ -95,6 +96,7 @@ const {
 const {
   listByDestination,
   getAttraction,
+  getAttractionPhoto,
 } = require("../src/modules/attractions/attractions.controller");
 const {
   enrichAttraction,
@@ -351,6 +353,37 @@ describe("controllers", () => {
         message: "Attraction fetched.",
         data: payload,
       });
+    });
+
+    test("getAttractionPhoto streams a proxied attraction image", async () => {
+      const req = {
+        params: { idOrSlug: "pantai-nongsa" },
+        query: { variant: "thumbnail" },
+      };
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = {
+        type: "binary",
+        statusCode: 200,
+        cacheControl: "private, no-store, max-age=0",
+        contentType: "image/jpeg",
+        body: Buffer.from("photo-bytes"),
+      };
+      attractionsService.getPhotoAsset.mockResolvedValue(payload);
+
+      await getAttractionPhoto(req, res, next);
+
+      expect(attractionsService.getPhotoAsset).toHaveBeenCalledWith(
+        "pantai-nongsa",
+        "thumbnail"
+      );
+      expect(res.set).toHaveBeenCalledWith(
+        "Cache-Control",
+        "private, no-store, max-age=0"
+      );
+      expect(res.type).toHaveBeenCalledWith("image/jpeg");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith(payload.body);
     });
   });
 

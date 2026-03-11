@@ -24,6 +24,7 @@ describe("OpenAPI document", () => {
     );
     expect(document.paths["/api/auth/register"]).toBeDefined();
     expect(document.paths["/api/dashboard/home"]).toBeDefined();
+    expect(document.paths["/api/attractions/{idOrSlug}/photo"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/itinerary"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/ai-generate"]).toBeDefined();
@@ -71,6 +72,13 @@ describe("OpenAPI document", () => {
     );
     expect(document.paths["/api/destinations/{destinationId}/attractions"].get.description).toContain(
       "UUID or stable slug"
+    );
+    expect(document.paths["/api/attractions/{idOrSlug}/photo"].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "variant",
+        }),
+      ])
     );
     expect(document.paths["/api/dashboard/home"].get.description).toContain(
       "Batam-first"

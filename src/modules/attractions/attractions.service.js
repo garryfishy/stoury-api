@@ -7,17 +7,87 @@ const {
   normalizePagination,
 } = require("../../utils/pagination");
 const { readRecordValue } = require("../../utils/model-helpers");
+const env = require("../../config/env");
+const { googlePlacesClient: defaultGooglePlacesClient } = require("../../services/google-places");
+const {
+  buildGoogleSearchQuery,
+  getAttractionCoordinates,
+  GOOGLE_TEXT_SEARCH_RADIUS_METERS,
+  pickEnrichmentMatch,
+} = require("../admin-attractions/admin-attractions.helpers");
 const {
   findDestinationByIdOrSlug,
   isUuidIdentifier,
   serializeDestination,
 } = require("../destinations/destinations.helpers");
 const {
+  ATTRACTION_PHOTO_VARIANTS,
   loadAttractionCategoriesByAttractionIds,
   serializeAttraction,
 } = require("./attractions.helpers");
 
-const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
+const PHOTO_VARIANT_CONFIG = {
+  [ATTRACTION_PHOTO_VARIANTS.thumbnail]: {
+    height: 400,
+    maxWidth: env.GOOGLE_PLACES_PHOTO_THUMBNAIL_MAX_WIDTH,
+    width: env.GOOGLE_PLACES_PHOTO_THUMBNAIL_MAX_WIDTH,
+  },
+  [ATTRACTION_PHOTO_VARIANTS.main]: {
+    height: 900,
+    maxWidth: env.GOOGLE_PLACES_PHOTO_MAIN_MAX_WIDTH,
+    width: env.GOOGLE_PLACES_PHOTO_MAIN_MAX_WIDTH,
+  },
+};
+
+const IMAGE_CACHE_CONTROL = "private, no-store, max-age=0";
+
+const escapeXml = (value) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const buildPhotoPlaceholderSvg = (attraction, variant) => {
+  const config = PHOTO_VARIANT_CONFIG[variant] || PHOTO_VARIANT_CONFIG.main;
+  const attractionName = escapeXml(readRecordValue(attraction, ["name"], "Attraction"));
+  const destinationLabel = escapeXml(readRecordValue(attraction, ["fullAddress"], "Stoury"));
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${config.width}" height="${config.height}" viewBox="0 0 ${config.width} ${config.height}" role="img" aria-labelledby="title desc">
+  <title id="title">${attractionName}</title>
+  <desc id="desc">Placeholder image for ${attractionName}</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#164e63" />
+    </linearGradient>
+  </defs>
+  <rect width="${config.width}" height="${config.height}" fill="url(#bg)" />
+  <circle cx="${Math.round(config.width * 0.18)}" cy="${Math.round(config.height * 0.28)}" r="${Math.round(config.width * 0.09)}" fill="rgba(255,255,255,0.18)" />
+  <path d="M0 ${Math.round(config.height * 0.82)} L${Math.round(config.width * 0.28)} ${Math.round(config.height * 0.48)} L${Math.round(config.width * 0.52)} ${Math.round(config.height * 0.72)} L${Math.round(config.width * 0.76)} ${Math.round(config.height * 0.34)} L${config.width} ${Math.round(config.height * 0.64)} V${config.height} H0 Z" fill="rgba(255,255,255,0.14)" />
+  <text x="${Math.round(config.width * 0.08)}" y="${Math.round(config.height * 0.78)}" fill="#f8fafc" font-size="${Math.round(config.width * 0.056)}" font-family="Helvetica, Arial, sans-serif" font-weight="700">${attractionName}</text>
+  <text x="${Math.round(config.width * 0.08)}" y="${Math.round(config.height * 0.88)}" fill="rgba(248,250,252,0.8)" font-size="${Math.round(config.width * 0.028)}" font-family="Helvetica, Arial, sans-serif">${destinationLabel}</text>
+</svg>`.trim();
+};
+
+const findActiveAttractionByIdOrSlug = async (Attraction, idOrSlug) => {
+  const attraction = isUuidIdentifier(idOrSlug)
+    ? await Attraction.findByPk(String(idOrSlug))
+    : await Attraction.findOne({ where: { slug: idOrSlug, isActive: true } });
+
+  if (!attraction || !readRecordValue(attraction, ["isActive"], false)) {
+    throw new AppError("Attraction not found.", 404);
+  }
+
+  return attraction;
+};
+
+const createAttractionsService = ({
+  dbProvider = getDb,
+  googlePlacesClient = defaultGooglePlacesClient,
+} = {}) => ({
   async listByDestination(destinationId, query = {}) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
@@ -147,13 +217,7 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
     const Attraction = getRequiredModel(db, "Attraction");
     const Destination = getRequiredModel(db, "Destination");
 
-    const attraction = isUuidIdentifier(idOrSlug)
-      ? await Attraction.findByPk(String(idOrSlug))
-      : await Attraction.findOne({ where: { slug: idOrSlug, isActive: true } });
-
-    if (!attraction || !attraction.isActive) {
-      throw new AppError("Attraction not found.", 404);
-    }
+    const attraction = await findActiveAttractionByIdOrSlug(Attraction, idOrSlug);
 
     const destinationId = readRecordValue(attraction, ["destinationId"]);
     const destination = destinationId
@@ -168,6 +232,102 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
       destination,
       categories: categoriesByAttractionId.get(readRecordValue(attraction, ["id"])) || [],
     });
+  },
+
+  async getPhotoAsset(idOrSlug, variant = ATTRACTION_PHOTO_VARIANTS.main) {
+    const db = dbProvider();
+    const Attraction = getRequiredModel(db, "Attraction");
+    const Destination = getRequiredModel(db, "Destination");
+    const attraction = await findActiveAttractionByIdOrSlug(Attraction, idOrSlug);
+    const normalizedVariant =
+      variant === ATTRACTION_PHOTO_VARIANTS.thumbnail
+        ? ATTRACTION_PHOTO_VARIANTS.thumbnail
+        : ATTRACTION_PHOTO_VARIANTS.main;
+    const manualImageUrl =
+      normalizedVariant === ATTRACTION_PHOTO_VARIANTS.thumbnail
+        ? readRecordValue(attraction, ["thumbnailImageUrl"], null)
+        : readRecordValue(attraction, ["mainImageUrl"], null);
+
+    if (manualImageUrl) {
+      return {
+        cacheControl: IMAGE_CACHE_CONTROL,
+        location: manualImageUrl,
+        statusCode: 302,
+        type: "redirect",
+      };
+    }
+
+    const tryFetchGooglePhoto = async (placeId) => {
+      const details = await googlePlacesClient.getPlaceDetails(placeId, {
+        includePhotos: true,
+      });
+      const [primaryPhoto] = Array.isArray(details.photos) ? details.photos : [];
+
+      if (!primaryPhoto?.photoReference) {
+        return null;
+      }
+
+      const photo = await googlePlacesClient.getPlacePhoto({
+        photoReference: primaryPhoto.photoReference,
+        maxWidth: PHOTO_VARIANT_CONFIG[normalizedVariant].maxWidth,
+      });
+
+      return {
+        body: photo.body,
+        cacheControl: IMAGE_CACHE_CONTROL,
+        contentType: photo.contentType,
+        statusCode: 200,
+        type: "binary",
+      };
+    };
+
+    const storedPlaceId = readRecordValue(attraction, ["externalPlaceId"], null);
+
+    if (storedPlaceId) {
+      try {
+        const photo = await tryFetchGooglePhoto(storedPlaceId);
+
+        if (photo) {
+          return photo;
+        }
+      } catch (_error) {
+        // Fall through to a placeholder rather than failing page rendering.
+      }
+    }
+
+    const destinationId = readRecordValue(attraction, ["destinationId"], null);
+    const destination = destinationId
+      ? await Destination.findByPk(String(destinationId))
+      : null;
+
+    if (destination) {
+      try {
+        const candidates = await googlePlacesClient.textSearch({
+          query: buildGoogleSearchQuery({ attraction, destination }),
+          location: getAttractionCoordinates(attraction),
+          radiusMeters: GOOGLE_TEXT_SEARCH_RADIUS_METERS,
+        });
+        const match = pickEnrichmentMatch({ attraction, candidates });
+
+        if (match.outcome === "enriched" && match.selectedCandidate?.placeId) {
+          const photo = await tryFetchGooglePhoto(match.selectedCandidate.placeId);
+
+          if (photo) {
+            return photo;
+          }
+        }
+      } catch (_error) {
+        // Fall through to a placeholder rather than failing page rendering.
+      }
+    }
+
+    return {
+      body: buildPhotoPlaceholderSvg(attraction, normalizedVariant),
+      cacheControl: IMAGE_CACHE_CONTROL,
+      contentType: "image/svg+xml; charset=utf-8",
+      statusCode: 200,
+      type: "inline",
+    };
   },
 });
 

@@ -29,7 +29,7 @@ describe("dashboard integration", () => {
         slug: expect.any(String),
         name: expect.any(String),
         shortLocation: expect.any(String),
-        thumbnailImageUrl: null,
+        thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
         rating: expect.any(Number),
         badge: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
         badgeKey: expect.stringMatching(/^(popular|food|shopping|history)$/),

@@ -4,6 +4,10 @@ const {
 } = require("../../config/dashboard");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
+const {
+  ATTRACTION_PHOTO_VARIANTS,
+  resolveAttractionImageUrl,
+} = require("../attractions/attractions.helpers");
 const { getPreferenceDisplayName } = require("../preferences/preferences.helpers");
 
 const DASHBOARD_BADGES = {
@@ -110,7 +114,10 @@ const serializeDashboardCard = (record, { destination, categories = [] } = {}) =
     slug: readRecordValue(record, ["slug"], ""),
     name: readRecordValue(record, ["name"], ""),
     shortLocation: deriveShortLocation(record, destination),
-    thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null) || null,
+    thumbnailImageUrl: resolveAttractionImageUrl(
+      record,
+      ATTRACTION_PHOTO_VARIANTS.thumbnail
+    ),
     rating: getDisplayRating(record),
     badge: getPreferenceDisplayName(badgeKey, badgeKey),
     badgeKey,

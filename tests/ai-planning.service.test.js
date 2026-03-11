@@ -126,6 +126,8 @@ describe("ai planning service", () => {
           fullAddress: expect.any(String),
           latitude: expect.any(String),
           longitude: expect.any(String),
+          thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
+          mainImageUrl: expect.stringContaining("/api/attractions/"),
           enrichment: expect.any(Object),
         }),
       })

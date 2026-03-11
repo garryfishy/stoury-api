@@ -208,8 +208,10 @@ describe("itineraries service", () => {
                 longitude: "104.1190000",
                 estimatedDurationMinutes: 120,
                 rating: "4.5",
-                thumbnailImageUrl: null,
-                mainImageUrl: null,
+                thumbnailImageUrl:
+                  "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
+                mainImageUrl:
+                  "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main",
                 enrichment: {
                   externalSource: "google_places",
                   externalPlaceId: "ChIJexamplePantaiNongsa",

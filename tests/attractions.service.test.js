@@ -54,6 +54,12 @@ describe("attractions service", () => {
       })
     );
     expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        thumbnailImageUrl: `http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail`,
+        mainImageUrl: `http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main`,
+      })
+    );
     expect(result.pagination).toEqual({
       page: 2,
       limit: 1,
@@ -142,5 +148,112 @@ describe("attractions service", () => {
         ]),
       }),
     });
+  });
+
+  test("getPhotoAsset returns a Google photo when the attraction already has a place id", async () => {
+    const attractionId = "33333333-3333-4333-8333-333333333333";
+    const db = {
+      Attraction: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: attractionId,
+          isActive: true,
+          name: "Pantai Nongsa",
+          externalPlaceId: "google-place-1",
+          thumbnailImageUrl: null,
+          mainImageUrl: null,
+        }),
+        findOne: jest.fn(),
+      },
+      Destination: {
+        findByPk: jest.fn(),
+      },
+    };
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn().mockResolvedValue({
+        placeId: "google-place-1",
+        photos: [
+          {
+            photoReference: "photo-ref-1",
+          },
+        ],
+      }),
+      getPlacePhoto: jest.fn().mockResolvedValue({
+        body: Buffer.from("image-bytes"),
+        contentType: "image/jpeg",
+      }),
+      textSearch: jest.fn(),
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await attractionsService.getPhotoAsset(attractionId, "thumbnail");
+
+    expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith("google-place-1", {
+      includePhotos: true,
+    });
+    expect(googlePlacesClient.getPlacePhoto).toHaveBeenCalledWith({
+      photoReference: "photo-ref-1",
+      maxWidth: 640,
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        type: "binary",
+        statusCode: 200,
+        contentType: "image/jpeg",
+      })
+    );
+    expect(result.body).toBeInstanceOf(Buffer);
+  });
+
+  test("getPhotoAsset falls back to an inline placeholder when no Google photo can be resolved", async () => {
+    const attractionId = "33333333-3333-4333-8333-333333333333";
+    const db = {
+      Attraction: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: attractionId,
+          destinationId: "22222222-2222-4222-8222-222222222222",
+          isActive: true,
+          name: "Pantai Nongsa",
+          fullAddress: "Batam, Indonesia",
+          latitude: "1.1870000",
+          longitude: "104.1190000",
+          externalPlaceId: null,
+          thumbnailImageUrl: null,
+          mainImageUrl: null,
+        }),
+        findOne: jest.fn(),
+      },
+      Destination: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Batam",
+          countryName: "Indonesia",
+        }),
+      },
+    };
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn(),
+      getPlacePhoto: jest.fn(),
+      textSearch: jest.fn().mockResolvedValue([]),
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await attractionsService.getPhotoAsset(attractionId, "main");
+
+    expect(googlePlacesClient.textSearch).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(
+      expect.objectContaining({
+        type: "inline",
+        statusCode: 200,
+        contentType: "image/svg+xml; charset=utf-8",
+      })
+    );
+    expect(String(result.body)).toContain("Pantai Nongsa");
+    expect(String(result.body)).toContain("<svg");
   });
 });

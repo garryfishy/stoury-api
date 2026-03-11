@@ -23,7 +23,29 @@ const getAttraction = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: "Attraction fetched.", data });
 });
 
+const getAttractionPhoto = asyncHandler(async (req, res) => {
+  const asset = await attractionsService.getPhotoAsset(
+    req.params.idOrSlug,
+    req.query.variant
+  );
+
+  if (asset.cacheControl) {
+    res.set("Cache-Control", asset.cacheControl);
+  }
+
+  if (asset.type === "redirect") {
+    return res.redirect(asset.statusCode || 302, asset.location);
+  }
+
+  if (asset.contentType) {
+    res.type(asset.contentType);
+  }
+
+  return res.status(asset.statusCode || 200).send(asset.body);
+});
+
 module.exports = {
   getAttraction,
+  getAttractionPhoto,
   listByDestination,
 };

@@ -1,5 +1,9 @@
 const { readRecordValue } = require("../../utils/model-helpers");
-const { serializeAttractionCategory } = require("../attractions/attractions.helpers");
+const {
+  ATTRACTION_PHOTO_VARIANTS,
+  resolveAttractionImageUrl,
+  serializeAttractionCategory,
+} = require("../attractions/attractions.helpers");
 
 const DEFAULT_DAY_START_MINUTES = 9 * 60;
 const DEFAULT_DAY_END_MINUTES = 18 * 60;
@@ -174,8 +178,11 @@ const serializeAttractionSummary = (record, categories = []) => ({
     null
   ),
   rating: readRecordValue(record, ["rating"], null),
-  thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null),
-  mainImageUrl: readRecordValue(record, ["mainImageUrl"], null),
+  thumbnailImageUrl: resolveAttractionImageUrl(
+    record,
+    ATTRACTION_PHOTO_VARIANTS.thumbnail
+  ),
+  mainImageUrl: resolveAttractionImageUrl(record, ATTRACTION_PHOTO_VARIANTS.main),
   enrichment: {
     externalSource: readRecordValue(record, ["externalSource"], null),
     externalPlaceId: readRecordValue(record, ["externalPlaceId"], null),
