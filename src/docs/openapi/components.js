@@ -692,7 +692,16 @@ const components = {
     },
     AdminAttractionEnrichmentItem: {
       type: "object",
-      required: ["id", "name", "slug", "coordinates", "destination", "enrichment"],
+      required: [
+        "id",
+        "name",
+        "slug",
+        "thumbnailImageUrl",
+        "mainImageUrl",
+        "coordinates",
+        "destination",
+        "enrichment",
+      ],
       properties: {
         id: {
           type: "string",
@@ -703,6 +712,14 @@ const components = {
         },
         slug: {
           type: "string",
+        },
+        thumbnailImageUrl: {
+          type: "string",
+          nullable: true,
+        },
+        mainImageUrl: {
+          type: "string",
+          nullable: true,
         },
         coordinates: {
           type: "object",
@@ -856,6 +873,30 @@ const components = {
         },
       },
     },
+    AdminAttractionPhotoBackfillResult: {
+      type: "object",
+      required: ["attraction", "outcome", "updated", "reason", "error"],
+      properties: {
+        attraction: {
+          $ref: "#/components/schemas/AdminAttractionEnrichmentItem",
+        },
+        outcome: {
+          type: "string",
+          enum: ["updated", "skipped", "failed"],
+        },
+        updated: {
+          type: "boolean",
+        },
+        reason: {
+          type: "string",
+          nullable: true,
+        },
+        error: {
+          type: "string",
+          nullable: true,
+        },
+      },
+    },
     PendingAttractionEnrichmentCollection: {
       type: "object",
       required: ["items", "total", "pagination", "filtersApplied"],
@@ -969,6 +1010,75 @@ const components = {
           type: "array",
           items: {
             $ref: "#/components/schemas/AdminAttractionEnrichmentResult",
+          },
+        },
+      },
+    },
+    BatchAttractionPhotoBackfillRequest: {
+      type: "object",
+      properties: {
+        destinationId: {
+          type: "string",
+          format: "uuid",
+          description:
+            "Optional destination UUID to limit the bulk photo backfill to one destination.",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 25,
+          default: 10,
+        },
+        dryRun: {
+          type: "boolean",
+          default: false,
+        },
+        force: {
+          type: "boolean",
+          default: false,
+          description:
+            "When true, refreshes photo URLs even if the image columns are already populated.",
+        },
+      },
+    },
+    BatchAttractionPhotoBackfillSummary: {
+      type: "object",
+      required: [
+        "dryRun",
+        "force",
+        "attemptedCount",
+        "updatedCount",
+        "skippedCount",
+        "failedCount",
+        "results",
+      ],
+      properties: {
+        dryRun: {
+          type: "boolean",
+        },
+        force: {
+          type: "boolean",
+        },
+        attemptedCount: {
+          type: "integer",
+          minimum: 0,
+        },
+        updatedCount: {
+          type: "integer",
+          minimum: 0,
+        },
+        skippedCount: {
+          type: "integer",
+          minimum: 0,
+        },
+        failedCount: {
+          type: "integer",
+          minimum: 0,
+        },
+        results: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/AdminAttractionPhotoBackfillResult",
           },
         },
       },

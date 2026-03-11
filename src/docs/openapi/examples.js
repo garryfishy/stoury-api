@@ -382,6 +382,8 @@ const adminPendingAttraction = {
   id: ids.attractionId,
   name: attraction.name,
   slug: attraction.slug,
+  thumbnailImageUrl: null,
+  mainImageUrl: null,
   coordinates: {
     latitude: 1.187,
     longitude: 104.119,
@@ -535,6 +537,37 @@ const adminBatchEnrichmentSummary = {
   ],
 };
 
+const adminPhotoBackfillSummary = {
+  dryRun: false,
+  force: false,
+  attemptedCount: 2,
+  updatedCount: 1,
+  skippedCount: 1,
+  failedCount: 0,
+  results: [
+    {
+      attraction: {
+        ...adminEnrichmentSuccessResult.attraction,
+        thumbnailImageUrl:
+          "http://43.157.208.56:2000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
+        mainImageUrl:
+          "http://43.157.208.56:2000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main",
+      },
+      outcome: "updated",
+      updated: true,
+      reason: null,
+      error: null,
+    },
+    {
+      attraction: adminEnrichmentSuccessResult.attraction,
+      outcome: "skipped",
+      updated: false,
+      reason: "Google Places does not expose photos for this attraction.",
+      error: null,
+    },
+  ],
+};
+
 module.exports = {
   attraction,
   attractionCategory,
@@ -543,6 +576,7 @@ module.exports = {
   adminEnrichmentNeedsReviewResult,
   adminEnrichmentPendingCollection,
   adminEnrichmentSuccessResult,
+  adminPhotoBackfillSummary,
   aiPlanningPreview,
   dashboardHome,
   dashboardHomeCard,

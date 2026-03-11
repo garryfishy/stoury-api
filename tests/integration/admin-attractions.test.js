@@ -61,6 +61,8 @@ const resetTouchedAttractions = async () => {
       externalRating: null,
       externalReviewCount: null,
       externalLastSyncedAt: null,
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
     },
     {
       where: {
@@ -300,6 +302,72 @@ describe("admin attractions integration", () => {
         needsReviewCount: 1,
         failedCount: 1,
       })
+    );
+  });
+
+  test("backfills persisted photo URLs for enriched attractions in one destination", async () => {
+    const admin = await registerAdmin("admin-photo-backfill");
+    const targetAttraction = destinationAttractions[0];
+    touchedAttractionIds.add(targetAttraction.id);
+
+    await db.Attraction.update(
+      {
+        externalSource: "google_places",
+        externalPlaceId: "google-place-photo-backfill",
+        thumbnailImageUrl: null,
+        mainImageUrl: null,
+      },
+      {
+        where: {
+          id: targetAttraction.id,
+        },
+      }
+    );
+
+    jest.spyOn(googlePlacesClient, "getPlaceDetails").mockResolvedValueOnce({
+      placeId: "google-place-photo-backfill",
+      name: targetAttraction.name,
+      formattedAddress: targetAttraction.fullAddress || `${targetAttraction.name}, Indonesia`,
+      location: targetAttraction.latitude
+        ? {
+            latitude: Number(targetAttraction.latitude),
+            longitude: Number(targetAttraction.longitude),
+          }
+        : null,
+      rating: 4.4,
+      userRatingsTotal: 1234,
+      photos: [{ photoReference: "photo-ref-1", width: 1600, height: 1200 }],
+      types: ["tourist_attraction"],
+      url: null,
+      websiteUri: null,
+    });
+
+    const response = await request(app)
+      .post("/api/admin/attractions/backfill-photos")
+      .set(authHeader(admin.accessToken))
+      .send({
+        destinationId: targetAttraction.destinationId,
+        limit: 10,
+        dryRun: false,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        attemptedCount: expect.any(Number),
+        updatedCount: expect.any(Number),
+        skippedCount: expect.any(Number),
+        failedCount: 0,
+      })
+    );
+    expect(response.body.data.updatedCount).toBeGreaterThanOrEqual(1);
+
+    const refreshed = await db.Attraction.findByPk(targetAttraction.id);
+    expect(refreshed.thumbnailImageUrl).toBe(
+      `http://localhost:3000/api/attractions/${targetAttraction.id}/photo?variant=thumbnail`
+    );
+    expect(refreshed.mainImageUrl).toBe(
+      `http://localhost:3000/api/attractions/${targetAttraction.id}/photo?variant=main`
     );
   });
 

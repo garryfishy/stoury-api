@@ -54,9 +54,17 @@ const batchEnrichmentRequestSchema = z.object({
   staleDays: z.coerce.number().int().positive().max(365).default(DEFAULT_STALE_DAYS),
 });
 
+const photoBackfillRequestSchema = z.object({
+  destinationId: destinationIdParamSchema.shape.destinationId.optional(),
+  limit: z.coerce.number().int().positive().max(MAX_BATCH_LIMIT).default(DEFAULT_BATCH_LIMIT),
+  dryRun: z.preprocess(coerceBoolean, z.boolean().default(false)),
+  force: z.preprocess(coerceBoolean, z.boolean().default(false)),
+});
+
 module.exports = {
   attractionIdParamSchema,
   batchEnrichmentRequestSchema,
   enrichmentStatusSchema,
+  photoBackfillRequestSchema,
   pendingAttractionsQuerySchema,
 };

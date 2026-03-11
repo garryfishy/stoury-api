@@ -9,6 +9,10 @@ const {
 } = require("../../utils/pagination");
 const { googlePlacesClient: defaultGooglePlacesClient } = require("../../services/google-places");
 const {
+  ATTRACTION_PHOTO_VARIANTS,
+  buildAttractionPhotoUrl,
+} = require("../attractions/attractions.helpers");
+const {
   DEFAULT_BATCH_LIMIT,
   DEFAULT_PENDING_LIMIT,
   DEFAULT_STALE_DAYS,
@@ -136,6 +140,13 @@ const createAdminAttractionsService = ({
     staleDays: toPositiveInteger(filters.staleDays, DEFAULT_STALE_DAYS, 365),
   });
 
+  const normalizePhotoBackfillFilters = (filters = {}) => ({
+    destinationId: filters.destinationId || null,
+    limit: toPositiveInteger(filters.limit, DEFAULT_BATCH_LIMIT, MAX_BATCH_LIMIT),
+    dryRun: toBoolean(filters.dryRun, false),
+    force: toBoolean(filters.force, false),
+  });
+
   const buildPendingWhere = (Attraction, filters) => {
     const hasState = supportsStateTracking(Attraction);
     const where = {
@@ -239,6 +250,44 @@ const createAdminAttractionsService = ({
       attraction,
       destination,
       hasState: supportsStateTracking(Attraction),
+    };
+  };
+
+  const findPhotoBackfillCandidates = async (db, filters, transaction) => {
+    const { Attraction, Destination } = getModels(db);
+    const where = {
+      isActive: true,
+      externalSource: GOOGLE_ENRICHMENT_SOURCE,
+      externalPlaceId: {
+        [Op.ne]: null,
+      },
+    };
+
+    if (filters.destinationId) {
+      await assertDestinationExists(Destination, filters.destinationId, transaction);
+      where.destinationId = filters.destinationId;
+    }
+
+    if (!filters.force) {
+      where[Op.or] = [
+        { thumbnailImageUrl: null },
+        { mainImageUrl: null },
+      ];
+    }
+
+    const attractions = await Attraction.findAll({
+      where,
+      order: [["name", "ASC"]],
+      limit: filters.limit,
+      transaction,
+    });
+    const destinationMap = await loadDestinationMap(Destination, attractions, transaction);
+    const hasState = supportsStateTracking(Attraction);
+
+    return {
+      attractions,
+      destinationMap,
+      hasState,
     };
   };
 
@@ -527,6 +576,83 @@ const createAdminAttractionsService = ({
     }
   };
 
+  const buildPhotoPersistenceValues = (attraction) => ({
+    thumbnailImageUrl: buildAttractionPhotoUrl(
+      attraction,
+      ATTRACTION_PHOTO_VARIANTS.thumbnail
+    ),
+    mainImageUrl: buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.main),
+  });
+
+  const runSinglePhotoBackfill = async (
+    db,
+    attraction,
+    { dryRun = false, transaction = null, destinationMap = new Map(), hasState = true } = {}
+  ) => {
+    const attractionId = readRecordValue(attraction, ["id"]);
+    const destination =
+      destinationMap.get(readRecordValue(attraction, ["destinationId"])) || null;
+    const placeId = readRecordValue(attraction, ["externalPlaceId"], null);
+
+    if (!placeId) {
+      return {
+        attraction: serializeAdminAttraction(attraction, destination, {
+          hasStateAttributes: hasState,
+        }),
+        outcome: "skipped",
+        updated: false,
+        reason: "Attraction does not have a Google place ID yet.",
+        error: null,
+      };
+    }
+
+    try {
+      const details = await googlePlacesClient.getPlaceDetails(placeId, {
+        includePhotos: true,
+      });
+
+      if (!Array.isArray(details.photos) || !details.photos.length) {
+        return {
+          attraction: serializeAdminAttraction(attraction, destination, {
+            hasStateAttributes: hasState,
+          }),
+          outcome: "skipped",
+          updated: false,
+          reason: "Google Places does not expose photos for this attraction.",
+          error: null,
+        };
+      }
+
+      const photoValues = buildPhotoPersistenceValues(attraction);
+
+      if (!dryRun) {
+        await attraction.update(photoValues, { transaction });
+      }
+
+      return {
+        attraction: serializeAdminAttraction(
+          dryRun ? projectAttractionRecord(attraction, photoValues) : attraction,
+          destination,
+          { hasStateAttributes: hasState }
+        ),
+        outcome: "updated",
+        updated: true,
+        reason: null,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        attraction: serializeAdminAttraction(attraction, destination, {
+          hasStateAttributes: hasState,
+        }),
+        outcome: "failed",
+        updated: false,
+        reason: error?.message || "Google Places photo backfill failed.",
+        error: error?.message || "Google Places photo backfill failed.",
+      };
+    }
+  };
+
   return {
     async listPendingEnrichment(filters) {
       const db = dbProvider();
@@ -610,6 +736,41 @@ const createAdminAttractionsService = ({
         attemptedCount: results.length,
         enrichedCount: results.filter((result) => result.outcome === "enriched").length,
         needsReviewCount: results.filter((result) => result.outcome === "needs_review").length,
+        failedCount: results.filter((result) => result.outcome === "failed").length,
+        results,
+      };
+    },
+
+    async backfillPhotos(payload) {
+      const db = dbProvider();
+      const normalizedPayload = normalizePhotoBackfillFilters(payload);
+      const { attractions, destinationMap, hasState } = await findPhotoBackfillCandidates(
+        db,
+        normalizedPayload
+      );
+      const results = [];
+
+      for (const attraction of attractions) {
+        const result = await withTransaction(
+          async (transaction) =>
+            runSinglePhotoBackfill(db, attraction, {
+              dryRun: normalizedPayload.dryRun,
+              transaction,
+              destinationMap,
+              hasState,
+            }),
+          db
+        );
+
+        results.push(result);
+      }
+
+      return {
+        dryRun: normalizedPayload.dryRun,
+        force: normalizedPayload.force,
+        attemptedCount: results.length,
+        updatedCount: results.filter((result) => result.outcome === "updated").length,
+        skippedCount: results.filter((result) => result.outcome === "skipped").length,
         failedCount: results.filter((result) => result.outcome === "failed").length,
         results,
       };

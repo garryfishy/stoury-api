@@ -1,5 +1,9 @@
 const { Op } = require("sequelize");
 const { readRecordValue } = require("../../utils/model-helpers");
+const {
+  ATTRACTION_PHOTO_VARIANTS,
+  resolveAttractionImageUrl,
+} = require("../attractions/attractions.helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
 
 const GOOGLE_ENRICHMENT_SOURCE = "google_places";
@@ -75,6 +79,11 @@ const serializeAdminAttraction = (
   id: readRecordValue(record, ["id"]),
   name: readRecordValue(record, ["name"], ""),
   slug: readRecordValue(record, ["slug"], ""),
+  thumbnailImageUrl: resolveAttractionImageUrl(
+    record,
+    ATTRACTION_PHOTO_VARIANTS.thumbnail
+  ),
+  mainImageUrl: resolveAttractionImageUrl(record, ATTRACTION_PHOTO_VARIANTS.main),
   coordinates: getAttractionCoordinates(record),
   destination: destination ? serializeDestination(destination) : null,
   enrichment: buildEnrichmentState(record, { hasStateAttributes }),

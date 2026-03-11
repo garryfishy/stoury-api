@@ -38,6 +38,7 @@ jest.mock("../src/modules/attractions/attractions.service", () => ({
 
 jest.mock("../src/modules/admin-attractions/admin-attractions.service", () => ({
   adminAttractionsService: {
+    backfillPhotos: jest.fn(),
     listPendingEnrichment: jest.fn(),
     enrichAttraction: jest.fn(),
     enrichMissing: jest.fn(),
@@ -99,6 +100,7 @@ const {
   getAttractionPhoto,
 } = require("../src/modules/attractions/attractions.controller");
 const {
+  backfillAttractionPhotos,
   enrichAttraction,
   enrichMissingAttractions,
   listPendingEnrichment,
@@ -441,6 +443,25 @@ describe("controllers", () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: "Attraction batch enrichment processed.",
+        data: payload,
+      });
+    });
+
+    test("backfillAttractionPhotos returns the batch photo summary", async () => {
+      const req = {
+        body: { destinationId: "dest-1", limit: 10, dryRun: false },
+      };
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = { attemptedCount: 2, updatedCount: 1, skippedCount: 1, failedCount: 0 };
+      adminAttractionsService.backfillPhotos.mockResolvedValue(payload);
+
+      await backfillAttractionPhotos(req, res, next);
+
+      expect(adminAttractionsService.backfillPhotos).toHaveBeenCalledWith(req.body);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Attraction photo backfill processed.",
         data: payload,
       });
     });

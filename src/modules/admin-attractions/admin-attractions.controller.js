@@ -29,7 +29,17 @@ const enrichMissingAttractions = asyncHandler(async (req, res) => {
   });
 });
 
+const backfillAttractionPhotos = asyncHandler(async (req, res) => {
+  const data = await adminAttractionsService.backfillPhotos(req.body);
+
+  return sendSuccess(res, {
+    message: "Attraction photo backfill processed.",
+    data,
+  });
+});
+
 module.exports = {
+  backfillAttractionPhotos,
   enrichAttraction,
   enrichMissingAttractions,
   listPendingEnrichment,

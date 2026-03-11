@@ -31,6 +31,7 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/admin/attractions/enrichment-pending"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/{attractionId}/enrich"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/enrich-missing"]).toBeDefined();
+    expect(document.paths["/api/admin/attractions/backfill-photos"]).toBeDefined();
     expect(document.components.schemas.PaginationMeta).toBeDefined();
     expect(document.components.schemas.Destination.properties.isActive).toEqual(
       expect.objectContaining({
@@ -138,6 +139,16 @@ describe("OpenAPI document", () => {
     );
     expect(document.paths["/api/admin/attractions/enrichment-pending"].get.responses[429]).toBeDefined();
     expect(document.paths["/api/admin/attractions/enrichment-pending"].get.responses[503]).toBeDefined();
+    expect(
+      document.paths["/api/admin/attractions/backfill-photos"].post.requestBody.description
+    ).toContain("missing image columns");
+    expect(
+      document.components.schemas.BatchAttractionPhotoBackfillSummary.properties.updatedCount
+    ).toEqual(
+      expect.objectContaining({
+        type: "integer",
+      })
+    );
     expect(document.components.schemas.ErrorResponse.required).toEqual(
       expect.arrayContaining(["data"])
     );

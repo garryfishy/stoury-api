@@ -322,4 +322,108 @@ describe("admin attractions service", () => {
       statusCode: 409,
     });
   });
+
+  test("backfillPhotos persists backend image URLs for enriched attractions with Google photos", async () => {
+    const attractionRecord = createAttractionRecord({
+      externalSource: "google_places",
+      externalPlaceId: "google-place-1",
+      enrichmentStatus: "enriched",
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    });
+    const db = buildDb(attractionRecord, null, {
+      listResults: [attractionRecord],
+    });
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn().mockResolvedValue({
+        placeId: "google-place-1",
+        photos: [{ photoReference: "photo-ref-1", width: 1600, height: 1200 }],
+      }),
+    };
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await service.backfillPhotos({
+      destinationId: destination.id,
+      limit: 10,
+      dryRun: false,
+    });
+
+    expect(db.Attraction.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          destinationId: destination.id,
+          externalSource: "google_places",
+        }),
+      })
+    );
+    expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith("google-place-1", {
+      includePhotos: true,
+    });
+    expect(attractionRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        thumbnailImageUrl:
+          "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
+        mainImageUrl:
+          "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main",
+      }),
+      { transaction: null }
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        attemptedCount: 1,
+        updatedCount: 1,
+        skippedCount: 0,
+        failedCount: 0,
+      })
+    );
+  });
+
+  test("backfillPhotos skips attractions when Google Places has no photos", async () => {
+    const attractionRecord = createAttractionRecord({
+      externalSource: "google_places",
+      externalPlaceId: "google-place-1",
+      enrichmentStatus: "enriched",
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    });
+    const db = buildDb(attractionRecord, null, {
+      listResults: [attractionRecord],
+    });
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn().mockResolvedValue({
+        placeId: "google-place-1",
+        photos: [],
+      }),
+    };
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await service.backfillPhotos({
+      destinationId: destination.id,
+      limit: 10,
+      dryRun: false,
+    });
+
+    expect(attractionRecord.update).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        attemptedCount: 1,
+        updatedCount: 0,
+        skippedCount: 1,
+        failedCount: 0,
+      })
+    );
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        outcome: "skipped",
+        updated: false,
+        reason: "Google Places does not expose photos for this attraction.",
+      })
+    );
+  });
 });

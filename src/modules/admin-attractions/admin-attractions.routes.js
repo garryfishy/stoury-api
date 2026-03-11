@@ -10,6 +10,7 @@ const { authenticate } = require("../../middlewares/authenticate");
 const { authorize } = require("../../middlewares/authorize");
 const { validate } = require("../../middlewares/validate");
 const {
+  backfillAttractionPhotos,
   enrichAttraction,
   enrichMissingAttractions,
   listPendingEnrichment,
@@ -17,6 +18,7 @@ const {
 const {
   attractionIdParamSchema,
   batchEnrichmentRequestSchema,
+  photoBackfillRequestSchema,
   pendingAttractionsQuerySchema,
 } = require("./admin-attractions.validators");
 
@@ -42,6 +44,12 @@ adminAttractionsRouter.post(
   adminEnrichmentBatchRateLimit,
   validate({ body: batchEnrichmentRequestSchema }),
   enrichMissingAttractions
+);
+adminAttractionsRouter.post(
+  "/attractions/backfill-photos",
+  adminEnrichmentBatchRateLimit,
+  validate({ body: photoBackfillRequestSchema }),
+  backfillAttractionPhotos
 );
 
 module.exports = { adminAttractionsRouter };

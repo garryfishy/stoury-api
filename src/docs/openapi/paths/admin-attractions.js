@@ -4,6 +4,7 @@ const {
   adminEnrichmentNeedsReviewResult,
   adminEnrichmentPendingCollection,
   adminEnrichmentSuccessResult,
+  adminPhotoBackfillSummary,
   destination,
   ids,
 } = require("../examples");
@@ -220,6 +221,43 @@ const adminAttractionsPaths = {
         ),
         503: responseRef("ServiceUnavailable"),
         422: errorResponse("Invalid batch request.", errorExample("Destination not found.")),
+      },
+    },
+  },
+  "/api/admin/attractions/backfill-photos": {
+    post: {
+      tags: ["Admin Attractions"],
+      summary: "Persist attraction photo URLs in bulk for already-enriched attractions",
+      description:
+        "Internal admin-only bulk photo backfill endpoint. It targets active attractions that already have Google place enrichment, verifies that Google Places exposes at least one photo, and persists stable backend image URLs into the attraction image columns. This feature can be disabled by `ADMIN_ENRICHMENT_ENABLED` and also requires `GOOGLE_PLACES_API_KEY`.",
+      security: [{ bearerAuth: [] }],
+      requestBody: requestBody(
+        schemaRef("BatchAttractionPhotoBackfillRequest"),
+        {
+          destinationId: destination.id,
+          limit: 10,
+          dryRun: false,
+          force: false,
+        },
+        "Bulk photo persistence settings. By default only attractions with missing image columns are selected."
+      ),
+      responses: {
+        200: successResponse(
+          "Attraction photo backfill processed.",
+          schemaRef("BatchAttractionPhotoBackfillSummary"),
+          successExample(
+            "Attraction photo backfill processed.",
+            adminPhotoBackfillSummary
+          )
+        ),
+        401: responseRef("Unauthorized"),
+        403: responseRef("Forbidden"),
+        429: errorResponse(
+          "Admin batch enrichment limit exceeded.",
+          errorExample("Too many admin batch enrichment requests. Please try again later.")
+        ),
+        503: responseRef("ServiceUnavailable"),
+        422: errorResponse("Invalid photo backfill request.", errorExample("Destination not found.")),
       },
     },
   },

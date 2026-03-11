@@ -24,9 +24,11 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/dashboard/home"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/enrichment-pending"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/{attractionId}/enrich"]).toBeDefined();
+    expect(document.paths["/api/admin/attractions/backfill-photos"]).toBeDefined();
     expect(document.components.schemas.TripItinerary).toBeDefined();
     expect(document.components.schemas.AiPlanningPreview).toBeDefined();
     expect(document.components.schemas.AdminAttractionEnrichmentResult).toBeDefined();
+    expect(document.components.schemas.BatchAttractionPhotoBackfillSummary).toBeDefined();
     expect(document.components.schemas.PaginationMeta).toBeDefined();
     expect(document.servers).toEqual(
       expect.arrayContaining([
