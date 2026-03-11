@@ -51,15 +51,15 @@ describe("preferences service", () => {
     const categories = [
       {
         id: categoryIds[0],
-        name: "Food",
+        name: "Makanan",
         slug: "food",
         description: "Food hunting",
       },
       {
         id: categoryIds[1],
-        name: "Culture",
-        slug: "culture",
-        description: "Culture",
+        name: "History",
+        slug: "history",
+        description: "Historical places",
       },
     ];
     const db = {

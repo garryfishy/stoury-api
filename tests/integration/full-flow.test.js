@@ -54,7 +54,7 @@ describe("full flow integration", () => {
       .set(authHeader(auth.accessToken))
       .send({
         categoryIds: [
-          seedData.preferenceCategories.nature.id,
+          seedData.preferenceCategories.popular.id,
           seedData.preferenceCategories.food.id,
         ],
       });
@@ -86,7 +86,7 @@ describe("full flow integration", () => {
 
     expect(tripResponse.status).toBe(201);
     expect(tripResponse.body.data.preferences.map((item) => item.slug)).toEqual([
-      "nature",
+      "popular",
       "food",
     ]);
 
@@ -131,8 +131,8 @@ describe("full flow integration", () => {
       .set(authHeader(auth.accessToken))
       .send({
         categoryIds: [
-          seedData.preferenceCategories.culture.id,
-          seedData.preferenceCategories.adventure.id,
+          seedData.preferenceCategories.history.id,
+          seedData.preferenceCategories.popular.id,
         ],
       });
 
@@ -143,7 +143,7 @@ describe("full flow integration", () => {
         startDate: "2027-06-10",
         endDate: "2027-06-11",
         preferenceCategoryIds: [
-          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.history.id,
           seedData.preferenceCategories.food.id,
         ],
       })
@@ -194,7 +194,7 @@ describe("full flow integration", () => {
       .set(authHeader(auth.accessToken))
       .send({
         categoryIds: [
-          seedData.preferenceCategories.nature.id,
+          seedData.preferenceCategories.popular.id,
           seedData.preferenceCategories.food.id,
         ],
       });
@@ -210,7 +210,7 @@ describe("full flow integration", () => {
 
     expect(tripResponse.status).toBe(201);
     expect(tripResponse.body.data.preferences.map((item) => item.slug)).toEqual([
-      "nature",
+      "popular",
       "food",
     ]);
 
@@ -218,7 +218,7 @@ describe("full flow integration", () => {
       .put("/api/preferences/me")
       .set(authHeader(auth.accessToken))
       .send({
-        categoryIds: [seedData.preferenceCategories.adventure.id],
+        categoryIds: [seedData.preferenceCategories.history.id],
       });
 
     const tripDetailResponse = await request(app)
@@ -228,7 +228,7 @@ describe("full flow integration", () => {
     expect(tripDetailResponse.status).toBe(200);
     expect(
       [...tripDetailResponse.body.data.preferences.map((item) => item.slug)].sort()
-    ).toEqual(["food", "nature"]);
+    ).toEqual(["food", "popular"]);
   });
 
   test("covers the token lifecycle end to end", async () => {

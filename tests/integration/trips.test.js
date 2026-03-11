@@ -47,7 +47,7 @@ describe("trips integration", () => {
       .set(authHeader(auth.accessToken))
       .send({
         categoryIds: [
-          seedData.preferenceCategories.nature.id,
+          seedData.preferenceCategories.popular.id,
           seedData.preferenceCategories.food.id,
         ],
       });
@@ -77,7 +77,7 @@ describe("trips integration", () => {
           slug: "batam",
         }),
         preferences: [
-          expect.objectContaining({ slug: "nature" }),
+          expect.objectContaining({ slug: "popular" }),
           expect.objectContaining({ slug: "food" }),
         ],
       })
@@ -91,9 +91,9 @@ describe("trips integration", () => {
       auth.accessToken,
       buildAiTripPayload({
         destinationId: seedData.destinations.batam.id,
-        title: "Batam Culture Trip",
+        title: "Batam History Trip",
         preferenceCategoryIds: [
-          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.history.id,
           seedData.preferenceCategories.food.id,
         ],
       })
@@ -102,14 +102,14 @@ describe("trips integration", () => {
     expect(response.status).toBe(201);
     expect(response.body.data).toEqual(
       expect.objectContaining({
-        title: "Batam Culture Trip",
+        title: "Batam History Trip",
         planningMode: "ai_assisted",
         destinationId: seedData.destinations.batam.id,
         durationDays: 3,
         budget: "3000000.00",
         preferences: [
-          expect.objectContaining({ slug: "culture" }),
           expect.objectContaining({ slug: "food" }),
+          expect.objectContaining({ slug: "history" }),
         ],
       })
     );

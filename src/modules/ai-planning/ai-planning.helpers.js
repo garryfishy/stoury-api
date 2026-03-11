@@ -2,10 +2,12 @@ const { readRecordValue } = require("../../utils/model-helpers");
 const { serializePreferenceCategory } = require("../preferences/preferences.helpers");
 
 const PREFERENCE_TO_ATTRACTION_CATEGORY_SLUGS = {
-  nature: ["beach", "nature-park", "viewpoint"],
-  culture: ["heritage", "temple"],
+  popular: [],
+  history: ["heritage", "temple"],
   food: ["culinary"],
   shopping: ["shopping"],
+  nature: ["beach", "nature-park", "viewpoint"],
+  culture: ["heritage", "temple"],
   relaxation: ["beach", "nature-park", "viewpoint"],
   adventure: ["adventure", "nature-park", "viewpoint"],
   family: ["family-fun"],
@@ -128,10 +130,21 @@ const buildPreviewPayload = ({
   days,
 });
 
+const isDestinationWidePreferenceSet = (preferences) => {
+  if (!preferences.length) {
+    return false;
+  }
+
+  return preferences.every(
+    (preference) => readRecordValue(preference, ["slug"], "") === "popular"
+  );
+};
+
 module.exports = {
   buildPlanningStrategy,
   buildPreviewPayload,
   getPreferredAttractionCategorySlugs,
+  isDestinationWidePreferenceSet,
   scoreAttractionCandidate,
   sortCandidatesDeterministically,
 };

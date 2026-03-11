@@ -20,6 +20,7 @@ const {
   buildPlanningStrategy,
   buildPreviewPayload,
   getPreferredAttractionCategorySlugs,
+  isDestinationWidePreferenceSet,
   scoreAttractionCandidate,
   sortCandidatesDeterministically,
 } = require("./ai-planning.helpers");
@@ -192,8 +193,9 @@ const createAiPlanningService = ({
     const matchedCandidates = rankedCandidates.filter(
       (candidate) => candidate.preferenceMatchCount > 0
     );
+    const usesDestinationWidePreference = isDestinationWidePreferenceSet(preferences);
 
-    if (preferences.length && !preferredCategorySlugs.size) {
+    if (preferences.length && !preferredCategorySlugs.size && !usesDestinationWidePreference) {
       warnings.push(
         "Selected trip preferences do not have a direct attraction-category mapping yet, so the preview used destination-wide ranking."
       );

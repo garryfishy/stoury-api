@@ -4,7 +4,7 @@ const ids = {
   attractionId: "33333333-3333-4333-8333-333333333333",
   tripId: "44444444-4444-4444-8444-444444444444",
   preferenceFoodId: "55555555-5555-4555-8555-555555555555",
-  preferenceCultureId: "66666666-6666-4666-8666-666666666666",
+  preferenceHistoryId: "66666666-6666-4666-8666-666666666666",
   attractionCategoryNatureId: "77777777-7777-4777-8777-777777777777",
   itineraryId: "88888888-8888-4888-8888-888888888888",
   itineraryDayId: "99999999-9999-4999-8999-999999999999",
@@ -25,15 +25,15 @@ const user = {
 const preferences = [
   {
     id: ids.preferenceFoodId,
-    name: "Food",
+    name: "Makanan",
     slug: "food",
     description: "Culinary experiences and local specialties.",
   },
   {
-    id: ids.preferenceCultureId,
-    name: "Culture",
-    slug: "culture",
-    description: "Museums, heritage sites, and cultural activities.",
+    id: ids.preferenceHistoryId,
+    name: "History",
+    slug: "history",
+    description: "Historical sites, heritage areas, and cultural landmarks.",
   },
 ];
 

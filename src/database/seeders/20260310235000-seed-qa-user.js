@@ -7,7 +7,7 @@ const QA_USER = {
   email: "qa@stoury.local",
   full_name: "QA Demo User",
   password: "StouryQA123!",
-  preferenceSlugs: ["nature", "food", "culture"]
+  preferenceSlugs: ["popular", "food", "history"]
 };
 
 const isNonProductionSeedTarget = (databaseName) => {

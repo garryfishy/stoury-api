@@ -19,7 +19,7 @@ const buildManualTripPayload = ({
 
 const buildAiTripPayload = ({
   destinationId,
-  title = "Yogya Culture Trip",
+  title = "Yogya History Trip",
   startDate = "2026-07-10",
   endDate = "2026-07-12",
   budget = 3000000,
@@ -120,4 +120,3 @@ module.exports = {
   buildManualTripPayload,
   buildPrimaryBaliItineraryPayload,
 };
-

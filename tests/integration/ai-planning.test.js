@@ -58,7 +58,7 @@ describe("ai planning integration", () => {
         startDate: "2027-05-01",
         endDate: "2027-05-02",
         preferenceCategoryIds: [
-          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.history.id,
           seedData.preferenceCategories.food.id,
         ],
       })
@@ -159,7 +159,7 @@ describe("ai planning integration", () => {
         endDate: "2027-05-07",
         budget: 450000,
         preferenceCategoryIds: [
-          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.history.id,
           seedData.preferenceCategories.food.id,
         ],
       })
@@ -198,7 +198,7 @@ describe("ai planning integration", () => {
         startDate: "2027-05-10",
         endDate: "2027-05-11",
         preferenceCategoryIds: [
-          seedData.preferenceCategories.culture.id,
+          seedData.preferenceCategories.history.id,
           seedData.preferenceCategories.food.id,
         ],
       })
@@ -267,7 +267,7 @@ describe("ai planning integration", () => {
         destinationId: seedData.destinations.bali.id,
         startDate: "2027-05-25",
         endDate: "2027-05-26",
-        preferenceCategoryIds: [seedData.preferenceCategories.adventure.id],
+        preferenceCategoryIds: [seedData.preferenceCategories.popular.id],
       })
     );
 

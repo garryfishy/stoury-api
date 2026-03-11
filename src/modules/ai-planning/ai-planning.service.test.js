@@ -11,7 +11,7 @@ const { createMockDb } = require("../../test-utils/mock-sequelize-db");
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const TRIP_ID = "22222222-2222-4222-8222-222222222222";
 const DESTINATION_ID = "33333333-3333-4333-8333-333333333333";
-const CULTURE_ID = "44444444-4444-4444-8444-444444444444";
+const HISTORY_ID = "44444444-4444-4444-8444-444444444444";
 const FOOD_ID = "55555555-5555-4555-8555-555555555555";
 const TEMPLE_ATTRACTION_ID = "66666666-6666-4666-8666-666666666666";
 const FOOD_ATTRACTION_ID = "77777777-7777-4777-8777-777777777777";
@@ -101,9 +101,9 @@ const createService = ({
     ],
     preferenceCategories: [
       {
-        id: CULTURE_ID,
-        name: "Culture & Heritage",
-        slug: "culture",
+        id: HISTORY_ID,
+        name: "History",
+        slug: "history",
         description: "Historic attractions.",
         sortOrder: 1,
         isActive: true,
@@ -121,7 +121,7 @@ const createService = ({
       {
         id: "99999999-9999-4999-8999-999999999999",
         tripId: TRIP_ID,
-        preferenceCategoryId: CULTURE_ID,
+        preferenceCategoryId: HISTORY_ID,
       },
       {
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -377,6 +377,88 @@ describe("aiPlanningService", () => {
     );
     expect(preview.warnings).toEqual(
       expect.arrayContaining(preview.budgetWarnings)
+    );
+  });
+
+  test("treats popular as an intentional destination-wide preference without warning", async () => {
+    const db = createMockDb({
+      trips: [
+        {
+          id: TRIP_ID,
+          userId: USER_ID,
+          destinationId: DESTINATION_ID,
+          planningMode: "ai_assisted",
+          startDate: "2026-04-01",
+          endDate: "2026-04-01",
+          budget: "2500000.00",
+        },
+      ],
+      preferenceCategories: [
+        {
+          id: "10101010-1010-4010-8010-101010101010",
+          name: "Popular",
+          slug: "popular",
+          description: "Most popular attractions.",
+          sortOrder: 1,
+          isActive: true,
+        },
+      ],
+      tripPreferenceCategories: [
+        {
+          id: "20202020-2020-4020-8020-202020202020",
+          tripId: TRIP_ID,
+          preferenceCategoryId: "10101010-1010-4010-8010-101010101010",
+        },
+      ],
+      attractions: baseAttractions,
+      attractionCategories: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          name: "Temple",
+          slug: "temple",
+        },
+        {
+          id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          name: "Culinary Spot",
+          slug: "culinary",
+        },
+        {
+          id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          name: "Viewpoint",
+          slug: "viewpoint",
+        },
+      ],
+      attractionCategoryMappings: [
+        {
+          id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          attractionId: TEMPLE_ATTRACTION_ID,
+          attractionCategoryId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        },
+        {
+          id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+          attractionId: FOOD_ATTRACTION_ID,
+          attractionCategoryId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        },
+        {
+          id: "12121212-1212-4212-8212-121212121212",
+          attractionId: VIEW_ATTRACTION_ID,
+          attractionCategoryId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        },
+        {
+          id: "13131313-1313-4313-8313-131313131313",
+          attractionId: PARK_ATTRACTION_ID,
+          attractionCategoryId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        },
+      ],
+    });
+
+    const service = createAiPlanningService({
+      dbProvider: () => db,
+    });
+    const preview = await service.generatePreview(USER_ID, TRIP_ID);
+
+    expect(preview.warnings).not.toContain(
+      "Selected trip preferences do not have a direct attraction-category mapping yet, so the preview used destination-wide ranking."
     );
   });
 });

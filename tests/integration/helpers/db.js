@@ -27,7 +27,7 @@ const ensureTestDbReady = async () => {
   expect(destinationCount).toBeGreaterThanOrEqual(3);
   expect(activeDestinationCount).toBeGreaterThanOrEqual(1);
   expect(attractionCount).toBeGreaterThanOrEqual(72);
-  expect(preferenceCategoryCount).toBeGreaterThanOrEqual(8);
+  expect(preferenceCategoryCount).toBeGreaterThanOrEqual(4);
   expect(attractionCategoryCount).toBeGreaterThanOrEqual(10);
 };
 

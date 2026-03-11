@@ -42,20 +42,20 @@ describe("preferences integration", () => {
 
   test("PUT /api/preferences/me replaces, reloads, and clears preferences", async () => {
     const auth = await registerAndLogin(request, app, { label: "preferences-replace" });
-    const natureId = seedData.preferenceCategories.nature.id;
+    const popularId = seedData.preferenceCategories.popular.id;
     const foodId = seedData.preferenceCategories.food.id;
-    const adventureId = seedData.preferenceCategories.adventure.id;
+    const historyId = seedData.preferenceCategories.history.id;
 
     const firstResponse = await request(app)
       .put("/api/preferences/me")
       .set(authHeader(auth.accessToken))
-      .send({ categoryIds: [natureId, foodId] });
+      .send({ categoryIds: [popularId, foodId] });
 
     expect(firstResponse.status).toBe(200);
     expect(firstResponse.body.data).toEqual([
       expect.objectContaining({
-        id: natureId,
-        slug: "nature",
+        id: popularId,
+        slug: "popular",
         name: expect.any(String),
         description: expect.any(String),
       }),
@@ -73,20 +73,20 @@ describe("preferences integration", () => {
 
     expect(getAfterFirstSet.status).toBe(200);
     expect(getAfterFirstSet.body.data.map((category) => category.slug)).toEqual([
-      "nature",
+      "popular",
       "food",
     ]);
 
     const replaceResponse = await request(app)
       .put("/api/preferences/me")
       .set(authHeader(auth.accessToken))
-      .send({ categoryIds: [adventureId] });
+      .send({ categoryIds: [historyId] });
 
     expect(replaceResponse.status).toBe(200);
     expect(replaceResponse.body.data).toEqual([
       expect.objectContaining({
-        id: adventureId,
-        slug: "adventure",
+        id: historyId,
+        slug: "history",
       }),
     ]);
 
@@ -115,12 +115,12 @@ describe("preferences integration", () => {
 
   test("PUT /api/preferences/me rejects duplicate category IDs", async () => {
     const auth = await registerAndLogin(request, app, { label: "preferences-duplicate" });
-    const natureId = seedData.preferenceCategories.nature.id;
+    const popularId = seedData.preferenceCategories.popular.id;
 
     const response = await request(app)
       .put("/api/preferences/me")
       .set(authHeader(auth.accessToken))
-      .send({ categoryIds: [natureId, natureId] });
+      .send({ categoryIds: [popularId, popularId] });
 
     expect(response.status).toBe(422);
     expect(response.body.errors).toEqual(
@@ -155,4 +155,3 @@ describe("preferences integration", () => {
     expect(response.body.message).toBe("Authentication required.");
   });
 });
-

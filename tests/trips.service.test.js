@@ -25,8 +25,8 @@ describe("trips service", () => {
 
   test("createTrip snapshots custom preference categories", async () => {
     const preferenceCategories = [
-      { id: "55555555-5555-4555-8555-555555555555", name: "Food", slug: "food" },
-      { id: "66666666-6666-4666-8666-666666666666", name: "Culture", slug: "culture" },
+      { id: "55555555-5555-4555-8555-555555555555", name: "Makanan", slug: "food" },
+      { id: "66666666-6666-4666-8666-666666666666", name: "History", slug: "history" },
     ];
     const db = {
       Destination: {
