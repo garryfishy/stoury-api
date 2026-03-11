@@ -22,6 +22,7 @@ const {
 } = require("../destinations/destinations.helpers");
 const {
   ATTRACTION_PHOTO_VARIANTS,
+  buildAttractionPhotoUrl,
   loadAttractionCategoriesByAttractionIds,
   serializeAttraction,
 } = require("./attractions.helpers");
@@ -247,8 +248,9 @@ const createAttractionsService = ({
       normalizedVariant === ATTRACTION_PHOTO_VARIANTS.thumbnail
         ? readRecordValue(attraction, ["thumbnailImageUrl"], null)
         : readRecordValue(attraction, ["mainImageUrl"], null);
+    const generatedPhotoUrl = buildAttractionPhotoUrl(attraction, normalizedVariant);
 
-    if (manualImageUrl) {
+    if (manualImageUrl && manualImageUrl !== generatedPhotoUrl) {
       return {
         cacheControl: IMAGE_CACHE_CONTROL,
         location: manualImageUrl,

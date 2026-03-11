@@ -207,6 +207,58 @@ describe("attractions service", () => {
     expect(result.body).toBeInstanceOf(Buffer);
   });
 
+  test("getPhotoAsset does not redirect when the stored image URL points back to the same photo endpoint", async () => {
+    const attractionId = "33333333-3333-4333-8333-333333333333";
+    const db = {
+      Attraction: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: attractionId,
+          isActive: true,
+          name: "Pantai Nongsa",
+          externalPlaceId: "google-place-1",
+          thumbnailImageUrl: `http://localhost:3000/api/attractions/${attractionId}/photo?variant=thumbnail`,
+          mainImageUrl: null,
+        }),
+        findOne: jest.fn(),
+      },
+      Destination: {
+        findByPk: jest.fn(),
+      },
+    };
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn().mockResolvedValue({
+        placeId: "google-place-1",
+        photos: [
+          {
+            photoReference: "photo-ref-1",
+          },
+        ],
+      }),
+      getPlacePhoto: jest.fn().mockResolvedValue({
+        body: Buffer.from("image-bytes"),
+        contentType: "image/jpeg",
+      }),
+      textSearch: jest.fn(),
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await attractionsService.getPhotoAsset(attractionId, "thumbnail");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        type: "binary",
+        statusCode: 200,
+        contentType: "image/jpeg",
+      })
+    );
+    expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith("google-place-1", {
+      includePhotos: true,
+    });
+  });
+
   test("getPhotoAsset falls back to an inline placeholder when no Google photo can be resolved", async () => {
     const attractionId = "33333333-3333-4333-8333-333333333333";
     const db = {
