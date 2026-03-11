@@ -76,7 +76,13 @@ describe("OpenAPI document", () => {
       "Batam-first"
     );
     expect(document.components.schemas.DashboardHomeCard.properties.badge.enum).toEqual(
+      expect.arrayContaining(["Populer", "Makanan", "Belanja", "Sejarah"])
+    );
+    expect(document.components.schemas.DashboardHomeCard.properties.badgeKey.enum).toEqual(
       expect.arrayContaining(["popular", "food", "shopping", "history"])
+    );
+    expect(document.components.schemas.PreferenceCategory.properties.name.description).toContain(
+      "Populer"
     );
     expect(
       document.paths["/api/trips"].post.requestBody.content["application/json"].examples

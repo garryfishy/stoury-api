@@ -1,8 +1,21 @@
 const { readRecordValue } = require("../../utils/model-helpers");
 
+const PREFERENCE_DISPLAY_NAMES = Object.freeze({
+  popular: "Populer",
+  food: "Makanan",
+  shopping: "Belanja",
+  history: "Sejarah",
+});
+
+const getPreferenceDisplayName = (slug, fallback = "") =>
+  PREFERENCE_DISPLAY_NAMES[String(slug || "").trim()] || fallback;
+
 const serializePreferenceCategory = (record) => ({
   id: readRecordValue(record, ["id"]),
-  name: readRecordValue(record, ["name"], ""),
+  name: getPreferenceDisplayName(
+    readRecordValue(record, ["slug"], ""),
+    readRecordValue(record, ["name"], "")
+  ),
   slug: readRecordValue(record, ["slug"], ""),
   description: readRecordValue(record, ["description"], ""),
 });
@@ -46,6 +59,8 @@ const loadUserPreferenceCategories = async (db, userId, transaction) => {
 };
 
 module.exports = {
+  PREFERENCE_DISPLAY_NAMES,
+  getPreferenceDisplayName,
   loadPreferenceCategoriesByIds,
   loadUserPreferenceCategories,
   serializePreferenceCategory,

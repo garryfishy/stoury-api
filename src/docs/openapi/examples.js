@@ -31,7 +31,7 @@ const preferences = [
   },
   {
     id: ids.preferenceHistoryId,
-    name: "History",
+    name: "Sejarah",
     slug: "history",
     description: "Historical sites, heritage areas, and cultural landmarks.",
   },
@@ -95,7 +95,8 @@ const dashboardHomeCard = {
   shortLocation: "Nongsa, Batam",
   thumbnailImageUrl: attraction.thumbnailImageUrl,
   rating: 4.5,
-  badge: "popular",
+  badge: "Populer",
+  badgeKey: "popular",
 };
 
 const dashboardHome = {
@@ -109,7 +110,8 @@ const dashboardHome = {
       shortLocation: "Lubuk Baja, Batam",
       thumbnailImageUrl: null,
       rating: 4.7,
-      badge: "food",
+      badge: "Makanan",
+      badgeKey: "food",
     },
   ],
   exploreMore: [
@@ -120,7 +122,8 @@ const dashboardHome = {
       shortLocation: "Sagulung, Batam",
       thumbnailImageUrl: null,
       rating: 4.6,
-      badge: "history",
+      badge: "Sejarah",
+      badgeKey: "history",
     },
   ],
   meta: {

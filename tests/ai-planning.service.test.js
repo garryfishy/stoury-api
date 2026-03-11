@@ -111,6 +111,12 @@ describe("ai planning service", () => {
 
     expect(result.tripId).toBe(trip.id);
     expect(result.planningMode).toBe("ai_assisted");
+    expect(result.preferences).toEqual([
+      expect.objectContaining({
+        slug: "food",
+        name: "Makanan",
+      }),
+    ]);
     expect(result.days).toHaveLength(2);
     expect(result.days[0].items[0]).toEqual(
       expect.objectContaining({

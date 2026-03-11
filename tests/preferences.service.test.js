@@ -36,7 +36,7 @@ describe("preferences service", () => {
     expect(result).toEqual([
       {
         id: "55555555-5555-4555-8555-555555555555",
-        name: "Food",
+        name: "Makanan",
         slug: "food",
         description: "Food hunting",
       },
@@ -100,7 +100,18 @@ describe("preferences service", () => {
       ],
       { transaction: null }
     );
-    expect(result).toHaveLength(2);
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: categoryIds[0],
+        slug: "food",
+        name: "Makanan",
+      }),
+      expect.objectContaining({
+        id: categoryIds[1],
+        slug: "history",
+        name: "Sejarah",
+      }),
+    ]);
   });
 
   test("replaceMyPreferences rejects unknown categories", async () => {

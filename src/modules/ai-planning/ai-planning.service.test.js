@@ -185,6 +185,16 @@ describe("aiPlanningService", () => {
 
     expect(preview.tripId).toBe(TRIP_ID);
     expect(preview.days).toHaveLength(1);
+    expect(preview.preferences).toEqual([
+      expect.objectContaining({
+        slug: "history",
+        name: "Sejarah",
+      }),
+      expect.objectContaining({
+        slug: "food",
+        name: "Makanan",
+      }),
+    ]);
     expect(preview.strategy.mode).toBe("deterministic_only");
     expect(preview.isPartial).toBe(false);
     expect(preview.coverage.availableAttractionCount).toBe(4);
@@ -457,6 +467,12 @@ describe("aiPlanningService", () => {
     });
     const preview = await service.generatePreview(USER_ID, TRIP_ID);
 
+    expect(preview.preferences).toEqual([
+      expect.objectContaining({
+        slug: "popular",
+        name: "Populer",
+      }),
+    ]);
     expect(preview.warnings).not.toContain(
       "Selected trip preferences do not have a direct attraction-category mapping yet, so the preview used destination-wide ranking."
     );

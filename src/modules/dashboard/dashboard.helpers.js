@@ -4,6 +4,7 @@ const {
 } = require("../../config/dashboard");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
+const { getPreferenceDisplayName } = require("../preferences/preferences.helpers");
 
 const DASHBOARD_BADGES = {
   FOOD: "food",
@@ -23,7 +24,7 @@ const getAttractionCategorySlugs = (categories = []) =>
     .map((category) => readRecordValue(category, ["slug"], ""))
     .filter(Boolean);
 
-const getDashboardBadge = (categories = []) => {
+const getDashboardBadgeKey = (categories = []) => {
   const categorySlugs = new Set(getAttractionCategorySlugs(categories));
 
   if (categorySlugs.has("culinary")) {
@@ -40,6 +41,12 @@ const getDashboardBadge = (categories = []) => {
 
   return DASHBOARD_BADGES.POPULAR;
 };
+
+const getDashboardBadge = (categories = []) =>
+  getPreferenceDisplayName(
+    getDashboardBadgeKey(categories),
+    DASHBOARD_BADGES.POPULAR
+  );
 
 const getDisplayRating = (record) => {
   const externalRating = toFiniteNumber(readRecordValue(record, ["externalRating"], null));
@@ -95,15 +102,20 @@ const deriveShortLocation = (record, destination) => {
   return cityName || destinationName || fullAddress || null;
 };
 
-const serializeDashboardCard = (record, { destination, categories = [] } = {}) => ({
-  id: readRecordValue(record, ["id"]),
-  slug: readRecordValue(record, ["slug"], ""),
-  name: readRecordValue(record, ["name"], ""),
-  shortLocation: deriveShortLocation(record, destination),
-  thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null) || null,
-  rating: getDisplayRating(record),
-  badge: getDashboardBadge(categories),
-});
+const serializeDashboardCard = (record, { destination, categories = [] } = {}) => {
+  const badgeKey = getDashboardBadgeKey(categories);
+
+  return {
+    id: readRecordValue(record, ["id"]),
+    slug: readRecordValue(record, ["slug"], ""),
+    name: readRecordValue(record, ["name"], ""),
+    shortLocation: deriveShortLocation(record, destination),
+    thumbnailImageUrl: readRecordValue(record, ["thumbnailImageUrl"], null) || null,
+    rating: getDisplayRating(record),
+    badge: getPreferenceDisplayName(badgeKey, badgeKey),
+    badgeKey,
+  };
+};
 
 const sortDashboardAttractions = (items = []) =>
   [...items].sort((left, right) => {
@@ -147,6 +159,7 @@ module.exports = {
   deriveShortLocation,
   getAttractionCategorySlugs,
   getDashboardBadge,
+  getDashboardBadgeKey,
   getDisplayRating,
   getPopularityScore,
   serializeDashboardCard,

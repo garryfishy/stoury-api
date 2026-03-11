@@ -22,6 +22,7 @@ describe("dashboard integration", () => {
       })
     );
     expect(response.body.data.featured.length).toBeGreaterThan(0);
+    expect(response.body.data.featured.length).toBeLessThanOrEqual(4);
     expect(response.body.data.featured[0]).toEqual(
       expect.objectContaining({
         id: expect.any(String),
@@ -30,7 +31,8 @@ describe("dashboard integration", () => {
         shortLocation: expect.any(String),
         thumbnailImageUrl: null,
         rating: expect.any(Number),
-        badge: expect.stringMatching(/^(popular|food|shopping|history)$/),
+        badge: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
+        badgeKey: expect.stringMatching(/^(popular|food|shopping|history)$/),
       })
     );
     expect(response.body.data.meta).toEqual(

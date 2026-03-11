@@ -5,7 +5,7 @@ const {
 
 const preferenceCategories = [
   {
-    name: "Popular",
+    name: "Populer",
     slug: "popular",
     description: "Popular highlights and must-see attractions across the destination.",
     sort_order: 1,
@@ -26,7 +26,7 @@ const preferenceCategories = [
     is_active: true,
   },
   {
-    name: "History",
+    name: "Sejarah",
     slug: "history",
     description: "Historical sites, heritage areas, temples, and cultural landmarks.",
     sort_order: 4,

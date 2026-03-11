@@ -320,6 +320,8 @@ const components = {
         },
         name: {
           type: "string",
+          description:
+            "Localized preference label returned by the backend. Current values are Populer, Makanan, Belanja, and Sejarah.",
         },
         slug: {
           type: "string",
@@ -563,6 +565,7 @@ const components = {
         "thumbnailImageUrl",
         "rating",
         "badge",
+        "badgeKey",
       ],
       properties: {
         id: {
@@ -590,6 +593,12 @@ const components = {
         },
         badge: {
           type: "string",
+          description: "Localized display badge for the dashboard card.",
+          enum: ["Populer", "Makanan", "Belanja", "Sejarah"],
+        },
+        badgeKey: {
+          type: "string",
+          description: "Stable internal badge key for styling or client-side logic.",
           enum: ["popular", "food", "shopping", "history"],
         },
       },

@@ -102,13 +102,24 @@ describe("dashboard service", () => {
     expect(result.featured[0]).toEqual(
       expect.objectContaining({
         shortLocation: "Harbour Bay, Batam",
-        badge: "food",
+        badge: "Makanan",
+        badgeKey: "food",
         rating: 4.8,
         thumbnailImageUrl: null,
       })
     );
-    expect(result.featured[1].badge).toBe("history");
-    expect(result.featured[2].badge).toBe("shopping");
+    expect(result.featured[1]).toEqual(
+      expect.objectContaining({
+        badge: "Sejarah",
+        badgeKey: "history",
+      })
+    );
+    expect(result.featured[2]).toEqual(
+      expect.objectContaining({
+        badge: "Belanja",
+        badgeKey: "shopping",
+      })
+    );
     expect(result.exploreMore).toEqual([]);
     expect(result.meta).toEqual({
       defaultDestinationSlug: "batam",

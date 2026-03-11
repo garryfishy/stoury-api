@@ -90,7 +90,18 @@ describe("trips service", () => {
       ],
       { transaction: null }
     );
-    expect(result.preferences).toHaveLength(2);
+    expect(result.preferences).toEqual([
+      expect.objectContaining({
+        id: preferenceCategories[0].id,
+        slug: "food",
+        name: "Makanan",
+      }),
+      expect.objectContaining({
+        id: preferenceCategories[1].id,
+        slug: "history",
+        name: "Sejarah",
+      }),
+    ]);
   });
 
   test("createTrip rejects overlapping trips for the same destination", async () => {
