@@ -1,0 +1,60 @@
+<%- include("partials/head", { pageTitle, pageDescription, assetsBasePath }) %>
+  <body class="admin-login-page">
+    <main class="login-shell" data-page="admin-login">
+      <section class="login-card">
+        <p class="login-eyebrow">Internal access</p>
+        <h1 class="login-title">Stoury Admin</h1>
+        <p class="login-copy">
+          Sign in with an account that has the <code>admin</code> role to access the CMS.
+        </p>
+
+        <%- include("partials/alerts", { alert }) %>
+
+        <form method="post" action="/admin/login" class="admin-form" data-admin-form>
+          <input type="hidden" name="next" value="<%= nextPath %>">
+
+          <label class="form-field">
+            <span>Email</span>
+            <input
+              type="email"
+              name="email"
+              value="<%= formData.email %>"
+              autocomplete="email"
+              required
+            >
+          </label>
+
+          <label class="form-field">
+            <span>Password</span>
+            <input
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              required
+            >
+          </label>
+
+          <button
+            type="submit"
+            class="button button-primary button-block"
+            data-loading-label="Signing in"
+          >
+            Sign in
+          </button>
+        </form>
+      </section>
+
+      <aside class="login-status-panel">
+        <p class="login-panel-label">Enrichment runtime</p>
+        <div class="status-inline">
+          <%- include("partials/status-badge", {
+            tone: runtimeStatusTone,
+            label: runtimeStatus.status
+          }) %>
+        </div>
+        <p class="login-panel-copy"><%= runtimeStatus.message %></p>
+      </aside>
+    </main>
+    <script src="<%= assetsBasePath %>/admin.js" defer></script>
+  </body>
+</html>

@@ -23,6 +23,7 @@ describe("OpenAPI document", () => {
       ])
     );
     expect(document.paths["/api/auth/register"]).toBeDefined();
+    expect(document.paths["/api/dashboard/home"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/itinerary"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/ai-generate"]).toBeDefined();
@@ -61,6 +62,22 @@ describe("OpenAPI document", () => {
         $ref: "#/components/schemas/PaginationMeta",
       })
     );
+    expect(document.paths["/api/destinations/{destinationId}/attractions"].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          $ref: "#/components/parameters/AttractionSearchQuery",
+        }),
+      ])
+    );
+    expect(document.paths["/api/destinations/{destinationId}/attractions"].get.description).toContain(
+      "UUID or stable slug"
+    );
+    expect(document.paths["/api/dashboard/home"].get.description).toContain(
+      "Batam-first"
+    );
+    expect(document.components.schemas.DashboardHomeCard.properties.badge.enum).toEqual(
+      expect.arrayContaining(["popular", "food", "shopping", "history"])
+    );
     expect(
       document.paths["/api/trips"].post.requestBody.content["application/json"].examples
     ).toEqual(
@@ -84,6 +101,7 @@ describe("OpenAPI document", () => {
     expect(document.tags.map((tag) => tag.name)).toEqual(
       expect.arrayContaining([
         "Auth",
+        "Dashboard",
         "Trips",
         "AI Planning",
         "Itineraries",

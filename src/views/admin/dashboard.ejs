@@ -1,0 +1,72 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <div class="page-stack" data-page="admin-dashboard">
+    <section class="hero-card">
+      <div>
+        <p class="admin-eyebrow">Dashboard overview</p>
+        <h2 class="section-title">Operational enrichment at a glance</h2>
+        <p class="section-copy">
+          This shell is server-rendered and ready for the enrichment operations pages that
+          will extend it.
+        </p>
+      </div>
+      <div class="status-inline">
+        <%- include("partials/status-badge", {
+          tone: runtimeStatusTone,
+          label: runtimeStatus.status
+        }) %>
+      </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Enrichment summary">
+      <article class="metric-card">
+        <p class="metric-label">Pending attractions</p>
+        <strong class="metric-value"><%= summary.pendingCount %></strong>
+        <p class="metric-copy">Records that still need a first Google Places attachment.</p>
+      </article>
+      <article class="metric-card">
+        <p class="metric-label">Needs review</p>
+        <strong class="metric-value"><%= summary.needsReviewCount %></strong>
+        <p class="metric-copy">Ambiguous Google matches that should be reviewed manually.</p>
+      </article>
+      <article class="metric-card">
+        <p class="metric-label">Stale enriched records</p>
+        <strong class="metric-value"><%= summary.staleCount %></strong>
+        <p class="metric-copy">Entries older than <%= summary.staleDays %> days with refresh risk.</p>
+      </article>
+    </section>
+
+    <section class="panel-grid">
+      <article class="panel-card">
+        <div class="panel-heading">
+          <h2 class="section-title">Google enrichment status</h2>
+          <%- include("partials/status-badge", {
+            tone: runtimeStatusTone,
+            label: runtimeStatus.status
+          }) %>
+        </div>
+        <p class="section-copy"><%= runtimeStatus.message %></p>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-heading">
+          <h2 class="section-title">Core pages</h2>
+        </div>
+        <div class="quick-links">
+          <% quickLinks.forEach((link) => { %>
+            <a href="<%= link.href %>" class="quick-link quick-link-<%= link.tone %>">
+              <strong><%= link.label %></strong>
+              <span><%= link.description %></span>
+            </a>
+          <% }) %>
+        </div>
+      </article>
+    </section>
+  </div>
+<%- include("partials/shell-end", { assetsBasePath }) %>

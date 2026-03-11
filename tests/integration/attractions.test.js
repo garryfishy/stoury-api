@@ -65,6 +65,17 @@ describe("attractions integration", () => {
     );
   });
 
+  test("GET /api/destinations/:destinationId/attractions also accepts a destination slug", async () => {
+    const response = await request(app).get("/api/destinations/batam/attractions");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.destination).toEqual(
+      expect.objectContaining({
+        slug: "batam",
+      })
+    );
+  });
+
   test("paginates destination attractions with stable metadata", async () => {
     const baliAttractionCount = countDestinationAttractions(seedData.destinations.bali.id);
     const response = await request(app).get(
@@ -237,17 +248,87 @@ describe("attractions integration", () => {
     );
   });
 
-  test("rejects invalid destination UUIDs", async () => {
+  test("returns 404 for an unknown destination slug", async () => {
     const response = await request(app).get(
-      "/api/destinations/not-a-uuid/attractions"
+      "/api/destinations/not-a-real-destination/attractions"
     );
 
-    expect(response.status).toBe(422);
-    expect(response.body.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ path: "destinationId" }),
-      ])
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Destination not found.");
+  });
+
+  test("searches attractions within a destination using q", async () => {
+    const response = await request(app)
+      .get("/api/destinations/batam/attractions")
+      .query({
+        q: "nongsa",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.destination.slug).toBe("batam");
+    expect(response.body.data.items.length).toBeGreaterThan(0);
+    expect(
+      response.body.data.items.every((item) =>
+        ["name", "slug", "fullAddress"].some((field) =>
+          String(item[field] || "").toLowerCase().includes("nongsa")
+        )
+      )
+    ).toBe(true);
+  });
+
+  test("search keeps pagination metadata stable", async () => {
+    const firstPageResponse = await request(app)
+      .get("/api/destinations/batam/attractions")
+      .query({
+        q: "batam",
+        page: 1,
+        limit: 2,
+      });
+
+    expect(firstPageResponse.status).toBe(200);
+    expect(firstPageResponse.body.meta).toEqual(
+      expect.objectContaining({
+        page: 1,
+        limit: 2,
+        total: expect.any(Number),
+        totalPages: expect.any(Number),
+      })
     );
+
+    const lastPage = Math.max(firstPageResponse.body.meta.totalPages, 1);
+    const lastPageResponse = await request(app)
+      .get("/api/destinations/batam/attractions")
+      .query({
+        q: "batam",
+        page: lastPage,
+        limit: 2,
+      });
+
+    expect(lastPageResponse.status).toBe(200);
+    expect(lastPageResponse.body.meta).toEqual({
+      page: lastPage,
+      limit: 2,
+      total: firstPageResponse.body.meta.total,
+      totalPages: firstPageResponse.body.meta.totalPages,
+    });
+  });
+
+  test("returns an empty result cleanly for an unknown search term", async () => {
+    const response = await request(app)
+      .get("/api/destinations/batam/attractions")
+      .query({
+        q: "zzzz-no-match-term",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.destination.slug).toBe("batam");
+    expect(response.body.data.items).toEqual([]);
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 12,
+      total: 0,
+      totalPages: 0,
+    });
   });
 
   test("GET /api/attractions/:idOrSlug fetches a detailed attraction by slug", async () => {

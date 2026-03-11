@@ -48,6 +48,17 @@ const adminAttractionsPaths = {
           },
         },
         {
+          name: "page",
+          in: "query",
+          required: false,
+          description: "1-based page number for the admin enrichment list.",
+          schema: {
+            type: "integer",
+            default: 1,
+            minimum: 1,
+          },
+        },
+        {
           name: "limit",
           in: "query",
           required: false,

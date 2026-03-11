@@ -37,17 +37,38 @@ const createAttractionsService = ({ dbProvider = getDb } = {}) => ({
             .map((value) => value.trim())
             .filter(Boolean)
         : [];
-
-    const destination = await Destination.findByPk(destinationId);
+    const searchTerm =
+      typeof query.q === "string" && query.q.trim().length ? query.q.trim() : null;
+    const destination = await findDestinationByIdOrSlug(Destination, destinationId);
 
     if (!destination) {
       throw new AppError("Destination not found.", 404);
     }
 
     const where = {
-      destinationId,
+      destinationId: readRecordValue(destination, ["id"]),
       isActive: true,
     };
+
+    if (searchTerm) {
+      where[Op.or] = [
+        {
+          name: {
+            [Op.iLike]: `%${searchTerm}%`,
+          },
+        },
+        {
+          slug: {
+            [Op.iLike]: `%${searchTerm}%`,
+          },
+        },
+        {
+          fullAddress: {
+            [Op.iLike]: `%${searchTerm}%`,
+          },
+        },
+      ];
+    }
 
     if (normalizedCategoryIds.length) {
       if (!AttractionCategory) {

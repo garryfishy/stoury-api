@@ -21,6 +21,7 @@ describe("OpenAPI document", () => {
 
     expect(document.paths["/api/trips/{tripId}/itinerary"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/ai-generate"]).toBeDefined();
+    expect(document.paths["/api/dashboard/home"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/enrichment-pending"]).toBeDefined();
     expect(document.paths["/api/admin/attractions/{attractionId}/enrich"]).toBeDefined();
     expect(document.components.schemas.TripItinerary).toBeDefined();
@@ -38,6 +39,7 @@ describe("OpenAPI document", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "Itineraries" }),
         expect.objectContaining({ name: "AI Planning" }),
+        expect.objectContaining({ name: "Dashboard" }),
         expect.objectContaining({ name: "Admin Attractions" }),
       ])
     );

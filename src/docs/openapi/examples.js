@@ -88,6 +88,48 @@ const attraction = {
   categories: [attractionCategory],
 };
 
+const dashboardHomeCard = {
+  id: attraction.id,
+  slug: attraction.slug,
+  name: attraction.name,
+  shortLocation: "Nongsa, Batam",
+  thumbnailImageUrl: attraction.thumbnailImageUrl,
+  rating: 4.5,
+  badge: "popular",
+};
+
+const dashboardHome = {
+  destination,
+  featured: [
+    dashboardHomeCard,
+    {
+      id: ids.secondAttractionId,
+      slug: "nagoya-hill-shopping-mall",
+      name: "Nagoya Hill Shopping Mall",
+      shortLocation: "Lubuk Baja, Batam",
+      thumbnailImageUrl: null,
+      rating: 4.7,
+      badge: "food",
+    },
+  ],
+  exploreMore: [
+    {
+      id: ids.thirdAttractionId,
+      slug: "barelang-bridge",
+      name: "Barelang Bridge",
+      shortLocation: "Sagulung, Batam",
+      thumbnailImageUrl: null,
+      rating: 4.6,
+      badge: "history",
+    },
+  ],
+  meta: {
+    defaultDestinationSlug: "batam",
+    featuredCount: 2,
+    exploreMoreCount: 1,
+  },
+};
+
 const itineraryAttractionSummary = {
   id: attraction.id,
   destinationId: attraction.destinationId,
@@ -461,9 +503,16 @@ const adminEnrichmentFailedResult = {
 const adminEnrichmentPendingCollection = {
   items: [adminPendingAttraction],
   total: 1,
+  pagination: {
+    page: 1,
+    limit: 25,
+    total: 1,
+    totalPages: 1,
+  },
   filtersApplied: {
     destinationId: ids.destinationId,
     status: "pending",
+    page: 1,
     limit: 25,
     staleOnly: false,
     staleDays: 30,
@@ -492,6 +541,8 @@ module.exports = {
   adminEnrichmentPendingCollection,
   adminEnrichmentSuccessResult,
   aiPlanningPreview,
+  dashboardHome,
+  dashboardHomeCard,
   destination,
   ids,
   itineraryAttractionSummary,

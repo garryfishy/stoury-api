@@ -1,0 +1,10 @@
+<% if (alert) { %>
+  <section class="alert alert-<%= alert.type || 'info' %>" role="status">
+    <% if (alert.title) { %>
+      <h2 class="alert-title"><%= alert.title %></h2>
+    <% } %>
+    <% if (alert.message) { %>
+      <p class="alert-message"><%= alert.message %></p>
+    <% } %>
+  </section>
+<% } %>

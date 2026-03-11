@@ -9,6 +9,7 @@ const { authPaths } = require("./paths/auth");
 const { usersPaths } = require("./paths/users");
 const { preferencesPaths } = require("./paths/preferences");
 const { destinationsPaths } = require("./paths/destinations");
+const { dashboardPaths } = require("./paths/dashboard");
 const { attractionsPaths } = require("./paths/attractions");
 const { adminAttractionsPaths } = require("./paths/admin-attractions");
 const { tripsPaths } = require("./paths/trips");
@@ -38,6 +39,10 @@ const baseTags = [
   {
     name: "Destinations",
     description: "Public curated destination catalog endpoints.",
+  },
+  {
+    name: "Dashboard",
+    description: "Public Batam-first mobile dashboard endpoints.",
   },
   {
     name: "Attractions",
@@ -95,7 +100,7 @@ const buildOpenApiDocument = ({
     title: "Stoury API",
     version: "0.1.0",
     description:
-      "MVP travel planner backend covering authentication, profile, preferences, destinations, attractions, admin attraction enrichment, trips, itinerary save/fetch, and AI itinerary preview flows.",
+      "MVP travel planner backend covering authentication, profile, preferences, destinations, dashboard home, attractions, admin attraction enrichment, trips, itinerary save/fetch, and AI itinerary preview flows.",
   },
   servers: buildServers(),
   tags: [...baseTags, ...extraTags],
@@ -119,6 +124,7 @@ const buildOpenApiDocument = ({
     ...usersPaths,
     ...preferencesPaths,
     ...destinationsPaths,
+    ...dashboardPaths,
     ...attractionsPaths,
     ...adminAttractionsPaths,
     ...tripsPaths,

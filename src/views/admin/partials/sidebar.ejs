@@ -1,0 +1,27 @@
+<aside class="admin-sidebar">
+  <div class="admin-branding">
+    <span class="admin-brand-mark">S</span>
+    <div>
+      <p class="admin-brand-name">Stoury Admin</p>
+      <p class="admin-brand-caption">Operations dashboard</p>
+    </div>
+  </div>
+
+  <nav class="admin-nav" aria-label="Admin">
+    <a
+      href="/admin"
+      class="admin-nav-link <%= activeNav === 'dashboard' ? 'is-active' : '' %>"
+    >
+      Dashboard
+    </a>
+    <a
+      href="/admin/enrichment/pending"
+      class="admin-nav-link <%= activeNav === 'pending-enrichment' ? 'is-active' : '' %>"
+    >
+      Pending Enrichment
+    </a>
+    <a href="/docs#/Admin%20Attractions" class="admin-nav-link">
+      API Docs
+    </a>
+  </nav>
+</aside>

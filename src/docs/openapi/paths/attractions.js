@@ -13,9 +13,10 @@ const attractionsPaths = {
       tags: ["Attractions"],
       summary: "List attractions for a destination",
       description:
-        "Public read-only curated attraction catalog for the MVP. Responses are paginated with top-level metadata. Admin CRUD is intentionally excluded and reserved for a future operational surface.",
+        "Public read-only curated attraction catalog for the MVP. The destination segment accepts either a UUID or stable slug, and the optional `q` filter performs a destination-scoped search by attraction name with slug/address fallback. Responses are paginated with top-level metadata. Admin CRUD is intentionally excluded and reserved for a future operational surface.",
       parameters: [
         parameterRef("DestinationIdParam"),
+        parameterRef("AttractionSearchQuery"),
         parameterRef("AttractionCategoryIdsQuery"),
         parameterRef("PageQuery"),
         {

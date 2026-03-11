@@ -1,0 +1,17 @@
+<header class="admin-header">
+  <div>
+    <p class="admin-eyebrow">Internal CMS</p>
+    <h1 class="admin-title"><%= pageTitle %></h1>
+  </div>
+  <div class="admin-header-actions">
+    <div class="admin-user-meta">
+      <span class="admin-user-label">Signed in as</span>
+      <strong class="admin-user-email"><%= adminUser?.email || 'admin' %></strong>
+    </div>
+    <form method="post" action="/admin/logout" class="inline-form" data-admin-form>
+      <button type="submit" class="button button-secondary" data-loading-label="Signing out">
+        Sign out
+      </button>
+    </form>
+  </div>
+</header>

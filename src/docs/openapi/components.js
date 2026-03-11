@@ -21,10 +21,9 @@ const components = {
       name: "destinationId",
       in: "path",
       required: true,
-      description: "Destination UUID.",
+      description: "Destination UUID or stable slug.",
       schema: {
         type: "string",
-        format: "uuid",
       },
     },
     AttractionIdParam: {
@@ -84,6 +83,18 @@ const components = {
         default: 20,
         minimum: 1,
         maximum: 100,
+      },
+    },
+    AttractionSearchQuery: {
+      name: "q",
+      in: "query",
+      required: false,
+      description:
+        "Optional destination-scoped attraction search term. Matches attraction name first and also checks slug and address text for the MVP.",
+      schema: {
+        type: "string",
+        minLength: 1,
+        maxLength: 100,
       },
     },
   },
@@ -542,6 +553,85 @@ const components = {
         },
       },
     },
+    DashboardHomeCard: {
+      type: "object",
+      required: [
+        "id",
+        "slug",
+        "name",
+        "shortLocation",
+        "thumbnailImageUrl",
+        "rating",
+        "badge",
+      ],
+      properties: {
+        id: {
+          type: "string",
+          format: "uuid",
+        },
+        slug: {
+          type: "string",
+        },
+        name: {
+          type: "string",
+        },
+        shortLocation: {
+          type: "string",
+          nullable: true,
+        },
+        thumbnailImageUrl: {
+          type: "string",
+          format: "uri",
+          nullable: true,
+        },
+        rating: {
+          type: "number",
+          nullable: true,
+        },
+        badge: {
+          type: "string",
+          enum: ["popular", "food", "shopping", "history"],
+        },
+      },
+    },
+    DashboardHomeResponse: {
+      type: "object",
+      required: ["destination", "featured", "exploreMore", "meta"],
+      properties: {
+        destination: {
+          $ref: "#/components/schemas/Destination",
+        },
+        featured: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/DashboardHomeCard",
+          },
+        },
+        exploreMore: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/DashboardHomeCard",
+          },
+        },
+        meta: {
+          type: "object",
+          required: ["defaultDestinationSlug", "featuredCount", "exploreMoreCount"],
+          properties: {
+            defaultDestinationSlug: {
+              type: "string",
+            },
+            featuredCount: {
+              type: "integer",
+              minimum: 0,
+            },
+            exploreMoreCount: {
+              type: "integer",
+              minimum: 0,
+            },
+          },
+        },
+      },
+    },
     AttractionEnrichmentState: {
       type: "object",
       required: [
@@ -759,7 +849,7 @@ const components = {
     },
     PendingAttractionEnrichmentCollection: {
       type: "object",
-      required: ["items", "total", "filtersApplied"],
+      required: ["items", "total", "pagination", "filtersApplied"],
       properties: {
         items: {
           type: "array",
@@ -771,9 +861,12 @@ const components = {
           type: "integer",
           minimum: 0,
         },
+        pagination: {
+          $ref: "#/components/schemas/PaginationMeta",
+        },
         filtersApplied: {
           type: "object",
-          required: ["destinationId", "status", "limit", "staleOnly", "staleDays"],
+          required: ["destinationId", "status", "page", "limit", "staleOnly", "staleDays"],
           properties: {
             destinationId: {
               type: "string",
@@ -783,6 +876,11 @@ const components = {
             status: {
               type: "string",
               enum: ["pending", "enriched", "needs_review", "failed"],
+              nullable: true,
+            },
+            page: {
+              type: "integer",
+              minimum: 1,
             },
             limit: {
               type: "integer",

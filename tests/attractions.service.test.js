@@ -1,6 +1,7 @@
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "test-access-secret";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh-secret";
 
+const { Op } = require("sequelize");
 const { createAttractionsService } = require("../src/modules/attractions/attractions.service");
 
 describe("attractions service", () => {
@@ -8,7 +9,7 @@ describe("attractions service", () => {
     const destinationId = "22222222-2222-4222-8222-222222222222";
     const db = {
       Destination: {
-        findByPk: jest.fn().mockResolvedValue({
+        findOne: jest.fn().mockResolvedValue({
           id: destinationId,
           name: "Batam",
           slug: "batam",
@@ -71,7 +72,7 @@ describe("attractions service", () => {
     const destinationId = "22222222-2222-4222-8222-222222222222";
     const db = {
       Destination: {
-        findByPk: jest.fn().mockResolvedValue({
+        findOne: jest.fn().mockResolvedValue({
           id: destinationId,
           name: "Batam",
           slug: "batam",
@@ -96,6 +97,50 @@ describe("attractions service", () => {
     ).rejects.toMatchObject({
       message: "One or more attraction categories do not exist.",
       statusCode: 422,
+    });
+  });
+
+  test("listByDestination supports destination slug lookup and q search", async () => {
+    const destinationId = "22222222-2222-4222-8222-222222222222";
+    const db = {
+      Destination: {
+        findOne: jest.fn().mockResolvedValue({
+          id: destinationId,
+          name: "Batam",
+          slug: "batam",
+          isActive: true,
+        }),
+      },
+      Attraction: {
+        count: jest.fn().mockResolvedValue(1),
+        findAll: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+    });
+
+    await attractionsService.listByDestination("batam", {
+      page: 1,
+      limit: 12,
+      q: "nongsa",
+    });
+
+    expect(db.Destination.findOne).toHaveBeenCalledWith({
+      where: { slug: "batam" },
+    });
+    expect(db.Attraction.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        destinationId,
+        isActive: true,
+        [Op.or]: expect.arrayContaining([
+          expect.objectContaining({
+            name: {
+              [Op.iLike]: "%nongsa%",
+            },
+          }),
+        ]),
+      }),
     });
   });
 });

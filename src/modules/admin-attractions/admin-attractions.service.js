@@ -2,10 +2,20 @@ const { Op, UniqueConstraintError } = require("sequelize");
 const { getDb, getRequiredModel, withTransaction } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
 const { readRecordValue } = require("../../utils/model-helpers");
+const {
+  buildPaginationMeta,
+  getPaginationOffset,
+  normalizePagination,
+} = require("../../utils/pagination");
 const { googlePlacesClient: defaultGooglePlacesClient } = require("../../services/google-places");
 const {
+  DEFAULT_BATCH_LIMIT,
+  DEFAULT_PENDING_LIMIT,
+  DEFAULT_STALE_DAYS,
   GOOGLE_ENRICHMENT_SOURCE,
   GOOGLE_TEXT_SEARCH_RADIUS_METERS,
+  MAX_BATCH_LIMIT,
+  MAX_PENDING_LIMIT,
   buildGoogleSearchQuery,
   getAttractionCoordinates,
   hasEnrichmentStateAttributes,
@@ -61,18 +71,83 @@ const createAdminAttractionsService = ({
     return new Map(destinations.map((destination) => [readRecordValue(destination, ["id"]), destination]));
   };
 
+  const toBoolean = (value, defaultValue = false) => {
+    if (value === undefined || value === null || value === "") {
+      return defaultValue;
+    }
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+
+    if (["true", "1", "yes", "on"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "off"].includes(normalized)) {
+      return false;
+    }
+
+    return defaultValue;
+  };
+
+  const toPositiveInteger = (value, fallback, max = Number.MAX_SAFE_INTEGER) => {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return fallback;
+    }
+
+    return Math.min(Math.trunc(parsed), max);
+  };
+
+  const resolveEffectiveStatus = (filters = {}) => {
+    if (filters.status) {
+      return filters.status;
+    }
+
+    return filters.staleOnly ? null : "pending";
+  };
+
+  const normalizePendingFilters = (filters = {}) => {
+    const pagination = normalizePagination({
+      page: filters.page,
+      limit: filters.limit,
+      defaultLimit: DEFAULT_PENDING_LIMIT,
+    });
+
+    return {
+      destinationId: filters.destinationId || null,
+      status: filters.status || null,
+      staleOnly: toBoolean(filters.staleOnly, false),
+      staleDays: toPositiveInteger(filters.staleDays, DEFAULT_STALE_DAYS, 365),
+      page: pagination.page,
+      limit: Math.min(pagination.limit, MAX_PENDING_LIMIT),
+    };
+  };
+
+  const normalizeBatchFilters = (filters = {}) => ({
+    destinationId: filters.destinationId || null,
+    limit: toPositiveInteger(filters.limit, DEFAULT_BATCH_LIMIT, MAX_BATCH_LIMIT),
+    dryRun: toBoolean(filters.dryRun, false),
+    staleOnly: toBoolean(filters.staleOnly, false),
+    staleDays: toPositiveInteger(filters.staleDays, DEFAULT_STALE_DAYS, 365),
+  });
+
   const buildPendingWhere = (Attraction, filters) => {
     const hasState = supportsStateTracking(Attraction);
     const where = {
       isActive: true,
     };
-    const effectiveStatus = filters.status || "pending";
+    const effectiveStatus = resolveEffectiveStatus(filters);
 
     if (filters.destinationId) {
       where.destinationId = filters.destinationId;
     }
 
-    if (hasState) {
+    if (hasState && effectiveStatus) {
       where.enrichmentStatus = effectiveStatus;
     } else if (effectiveStatus === "pending") {
       where.externalPlaceId = null;
@@ -110,15 +185,21 @@ const createAdminAttractionsService = ({
 
   const findPendingAttractions = async (db, filters, transaction) => {
     const { Attraction, Destination } = getModels(db);
+    const where = buildPendingWhere(Attraction, filters);
 
     if (filters.destinationId) {
       await assertDestinationExists(Destination, filters.destinationId, transaction);
     }
 
+    const total = await Attraction.count({
+      where,
+      transaction,
+    });
     const attractions = await Attraction.findAll({
-      where: buildPendingWhere(Attraction, filters),
+      where,
       order: [["name", "ASC"]],
       limit: filters.limit,
+      offset: getPaginationOffset(filters),
       transaction,
     });
     const destinationMap = await loadDestinationMap(Destination, attractions, transaction);
@@ -135,6 +216,7 @@ const createAdminAttractionsService = ({
       rawAttractions: attractions,
       destinationMap,
       hasState,
+      total,
     };
   };
 
@@ -448,17 +530,25 @@ const createAdminAttractionsService = ({
   return {
     async listPendingEnrichment(filters) {
       const db = dbProvider();
-      const { items } = await findPendingAttractions(db, filters);
+      const normalizedFilters = normalizePendingFilters(filters);
+      const { items, total } = await findPendingAttractions(db, normalizedFilters);
+      const effectiveStatus = resolveEffectiveStatus(normalizedFilters);
 
       return {
         items,
-        total: items.length,
+        total,
+        pagination: buildPaginationMeta({
+          page: normalizedFilters.page,
+          limit: normalizedFilters.limit,
+          total,
+        }),
         filtersApplied: {
-          destinationId: filters.destinationId || null,
-          status: filters.status || "pending",
-          limit: filters.limit,
-          staleOnly: filters.staleOnly,
-          staleDays: filters.staleDays,
+          destinationId: normalizedFilters.destinationId,
+          status: effectiveStatus,
+          limit: normalizedFilters.limit,
+          page: normalizedFilters.page,
+          staleOnly: normalizedFilters.staleOnly,
+          staleDays: normalizedFilters.staleDays,
         },
       };
     },
@@ -475,12 +565,13 @@ const createAdminAttractionsService = ({
 
     async enrichMissing(payload) {
       const db = dbProvider();
+      const normalizedPayload = normalizeBatchFilters(payload);
       const selectionFilters = {
-        destinationId: payload.destinationId || null,
-        limit: payload.limit,
-        staleOnly: payload.staleOnly,
-        staleDays: payload.staleDays,
-        status: payload.staleOnly ? undefined : "pending",
+        destinationId: normalizedPayload.destinationId,
+        limit: normalizedPayload.limit,
+        staleOnly: normalizedPayload.staleOnly,
+        staleDays: normalizedPayload.staleDays,
+        status: normalizedPayload.staleOnly ? undefined : "pending",
       };
       const { rawAttractions } = await findPendingAttractions(db, selectionFilters);
       const results = [];
@@ -490,7 +581,7 @@ const createAdminAttractionsService = ({
           const result = await withTransaction(
             async (transaction) =>
               runSingleEnrichment(db, readRecordValue(attraction, ["id"]), {
-                dryRun: payload.dryRun,
+                dryRun: normalizedPayload.dryRun,
                 transaction,
                 conflictAsFailure: true,
               }),
@@ -515,7 +606,7 @@ const createAdminAttractionsService = ({
       }
 
       return {
-        dryRun: payload.dryRun,
+        dryRun: normalizedPayload.dryRun,
         attemptedCount: results.length,
         enrichedCount: results.filter((result) => result.outcome === "enriched").length,
         needsReviewCount: results.filter((result) => result.outcome === "needs_review").length,

@@ -1,0 +1,19 @@
+<nav class="pagination" aria-label="Pagination">
+  <a
+    href="<%= pagination.page > 1 ? buildPageHref(pagination.page - 1) : '#' %>"
+    class="pagination-link <%= pagination.page <= 1 ? 'is-disabled' : '' %>"
+    aria-disabled="<%= pagination.page <= 1 ? 'true' : 'false' %>"
+  >
+    Previous
+  </a>
+  <span class="pagination-summary">
+    Page <strong><%= pagination.page %></strong> of <strong><%= pagination.totalPages %></strong>
+  </span>
+  <a
+    href="<%= pagination.page < pagination.totalPages ? buildPageHref(pagination.page + 1) : '#' %>"
+    class="pagination-link <%= pagination.page >= pagination.totalPages ? 'is-disabled' : '' %>"
+    aria-disabled="<%= pagination.page >= pagination.totalPages ? 'true' : 'false' %>"
+  >
+    Next
+  </a>
+</nav>

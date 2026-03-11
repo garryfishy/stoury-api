@@ -1,6 +1,8 @@
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "test-access-secret";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh-secret";
 
+const { Op } = require("sequelize");
+
 const {
   createAdminAttractionsService,
 } = require("../src/modules/admin-attractions/admin-attractions.service");
@@ -34,24 +36,105 @@ const createAttractionRecord = (overrides = {}) => ({
   ...overrides,
 });
 
-const buildDb = (attractionRecord, duplicateRecord = null) => ({
+const buildDb = (
+  attractionRecord,
+  duplicateRecord = null,
+  { countResult = 0, listResults = [] } = {}
+) => ({
   Attraction: {
     rawAttributes: {
       enrichmentStatus: {},
       enrichmentError: {},
       enrichmentAttemptedAt: {},
     },
+    count: jest.fn().mockResolvedValue(countResult),
     findByPk: jest.fn().mockResolvedValue(attractionRecord),
     findOne: jest.fn().mockResolvedValue(duplicateRecord),
-    findAll: jest.fn(),
+    findAll: jest.fn().mockResolvedValue(listResults),
   },
   Destination: {
     findByPk: jest.fn().mockResolvedValue(destination),
-    findAll: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([destination]),
   },
 });
 
 describe("admin attractions service", () => {
+  test("listPendingEnrichment returns total-backed pagination metadata", async () => {
+    const attractionRecord = createAttractionRecord();
+    const db = buildDb(attractionRecord, null, {
+      countResult: 3,
+      listResults: [attractionRecord],
+    });
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient: {},
+    });
+
+    const result = await service.listPendingEnrichment({
+      destinationId: destination.id,
+      page: 2,
+      limit: 1,
+      staleOnly: false,
+      staleDays: 30,
+    });
+
+    expect(db.Attraction.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          destinationId: destination.id,
+          enrichmentStatus: "pending",
+          isActive: true,
+        }),
+      })
+    );
+    expect(db.Attraction.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 1,
+        offset: 1,
+      })
+    );
+    expect(result.pagination).toEqual({
+      page: 2,
+      limit: 1,
+      total: 3,
+      totalPages: 3,
+    });
+    expect(result.total).toBe(3);
+    expect(result.filtersApplied).toEqual({
+      destinationId: destination.id,
+      status: "pending",
+      page: 2,
+      limit: 1,
+      staleOnly: false,
+      staleDays: 30,
+    });
+  });
+
+  test("listPendingEnrichment allows stale-only queries without forcing pending status", async () => {
+    const attractionRecord = createAttractionRecord();
+    const db = buildDb(attractionRecord, null, {
+      countResult: 0,
+      listResults: [],
+    });
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient: {},
+    });
+
+    const result = await service.listPendingEnrichment({
+      page: 1,
+      limit: 5,
+      staleOnly: true,
+      staleDays: 30,
+    });
+
+    const countWhere = db.Attraction.count.mock.calls[0][0].where;
+
+    expect(countWhere.enrichmentStatus).toBeUndefined();
+    expect(countWhere[Op.and]).toHaveLength(1);
+    expect(result.filtersApplied.status).toBeNull();
+  });
+
   test("enrichAttraction saves a confident Google Places match", async () => {
     const attractionRecord = createAttractionRecord();
     const db = buildDb(attractionRecord);

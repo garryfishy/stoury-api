@@ -11,6 +11,7 @@ The MVP plan covers:
 - email/password authentication with JWT access and refresh tokens
 - user profile and preference management
 - curated destinations and attractions
+- Batam-first dashboard home aggregation
 - trip creation with trip-owned preference snapshots
 - manual itinerary save and AI-assisted itinerary planning flows
 
@@ -58,9 +59,17 @@ JWT_ACCESS_SECRET=change-me JWT_REFRESH_SECRET=change-me npm start
 - OpenAPI JSON: `/docs/openapi.json`
 - OpenAPI assembly entry point: [`src/docs/openapi/index.js`](src/docs/openapi/index.js)
 
+## Admin dashboard
+
+- Admin login: `/admin/login`
+- Admin dashboard: `/admin`
+- The admin UI is server-rendered with EJS inside the same Express app and uses an `HttpOnly` access-token cookie scoped to `/admin`.
+- The default non-production admin bootstrap still comes from the existing `SEED_ADMIN_*` environment variables in `.env.example`.
+
 The OpenAPI document is composed from shared components plus per-module path files so future itinerary and AI-planning docs can be added without rewriting the existing sections.
 
 Public catalog endpoints use `page` / `limit` pagination and return top-level `meta` with `page`, `limit`, `total`, and `totalPages`.
+The public destination attraction endpoint also supports a destination-scoped `q` search term for the current mobile dashboard experience.
 
 ## Project structure
 
@@ -123,6 +132,7 @@ Mounted routes today:
 - `PUT /api/preferences/me`
 - `GET /api/destinations`
 - `GET /api/destinations/:idOrSlug`
+- `GET /api/dashboard/home`
 - `GET /api/destinations/:destinationId/attractions`
 - `GET /api/attractions/:idOrSlug`
 - `GET /api/trips`

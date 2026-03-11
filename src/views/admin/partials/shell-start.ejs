@@ -1,0 +1,8 @@
+<%- include("head", { pageTitle, pageDescription, assetsBasePath }) %>
+  <body class="admin-page">
+    <div class="admin-shell">
+      <%- include("sidebar", { activeNav }) %>
+      <div class="admin-main">
+        <%- include("header", { adminUser, pageTitle }) %>
+        <main class="admin-content">
+          <%- include("alerts", { alert }) %>

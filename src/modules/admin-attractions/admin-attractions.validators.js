@@ -40,6 +40,7 @@ const enrichmentStatusSchema = z.enum(ENRICHMENT_STATUSES);
 const pendingAttractionsQuerySchema = z.object({
   destinationId: destinationIdParamSchema.shape.destinationId.optional(),
   status: enrichmentStatusSchema.optional(),
+  page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(MAX_PENDING_LIMIT).default(DEFAULT_PENDING_LIMIT),
   staleOnly: z.preprocess(coerceBoolean, z.boolean().default(false)),
   staleDays: z.coerce.number().int().positive().max(365).default(DEFAULT_STALE_DAYS),

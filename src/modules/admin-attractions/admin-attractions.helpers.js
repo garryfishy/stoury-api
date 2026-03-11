@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
 
@@ -78,6 +79,53 @@ const serializeAdminAttraction = (
   destination: destination ? serializeDestination(destination) : null,
   enrichment: buildEnrichmentState(record, { hasStateAttributes }),
 });
+
+const buildAdminAttractionSelectionWhere = (Attraction, filters = {}) => {
+  const hasState = hasEnrichmentStateAttributes(Attraction);
+  const where = {
+    isActive: true,
+  };
+  const effectiveStatus = filters.status || "pending";
+
+  if (filters.destinationId) {
+    where.destinationId = filters.destinationId;
+  }
+
+  if (hasState) {
+    where.enrichmentStatus = effectiveStatus;
+  } else if (effectiveStatus === "pending") {
+    where.externalPlaceId = null;
+  } else if (effectiveStatus === "enriched") {
+    where.externalPlaceId = {
+      [Op.ne]: null,
+    };
+  } else {
+    where.id = null;
+  }
+
+  if (filters.staleOnly) {
+    const staleCutoff = new Date(
+      Date.now() - Number(filters.staleDays) * 24 * 60 * 60 * 1000
+    );
+
+    where[Op.and] = [
+      {
+        [Op.or]: [
+          {
+            externalLastSyncedAt: null,
+          },
+          {
+            externalLastSyncedAt: {
+              [Op.lt]: staleCutoff,
+            },
+          },
+        ],
+      },
+    ];
+  }
+
+  return where;
+};
 
 const buildGoogleSearchQuery = ({ attraction, destination }) =>
   [
@@ -218,6 +266,7 @@ module.exports = {
   GOOGLE_TEXT_SEARCH_RADIUS_METERS,
   MAX_BATCH_LIMIT,
   MAX_PENDING_LIMIT,
+  buildAdminAttractionSelectionWhere,
   buildEnrichmentState,
   buildGoogleSearchQuery,
   getAttractionCoordinates,

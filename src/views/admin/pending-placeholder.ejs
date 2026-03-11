@@ -1,0 +1,43 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <div class="page-stack" data-page="admin-pending-foundation">
+    <section class="hero-card">
+      <div>
+        <p class="admin-eyebrow">Foundation route</p>
+        <h2 class="section-title">Pending enrichment workspace shell</h2>
+        <p class="section-copy">
+          This page is intentionally lightweight for AGENT 3 to extend with the full list,
+          filters, and action flows.
+        </p>
+      </div>
+      <div class="status-inline">
+        <%- include("partials/status-badge", {
+          tone: runtimeStatusTone,
+          label: runtimeStatus.status
+        }) %>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Current queue signals</h2>
+      </div>
+      <ul class="stat-list">
+        <li>Pending attractions: <strong><%= summary.pendingCount %></strong></li>
+        <li>Needs review: <strong><%= summary.needsReviewCount %></strong></li>
+        <li>Stale enriched records: <strong><%= summary.staleCount %></strong></li>
+      </ul>
+      <p class="section-copy">
+        Use this route as the shared shell for the list page. The pagination partial is already
+        available below for the next phase.
+      </p>
+      <%- include("partials/pagination", { pagination, buildPageHref }) %>
+    </section>
+  </div>
+<%- include("partials/shell-end", { assetsBasePath }) %>

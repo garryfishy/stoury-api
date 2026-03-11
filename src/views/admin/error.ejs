@@ -1,0 +1,16 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <section class="panel-card" data-page="admin-error">
+    <p class="admin-eyebrow">Admin error</p>
+    <h2 class="section-title"><%= errorTitle %></h2>
+    <p class="section-copy"><%= errorMessage %></p>
+    <p class="section-copy">Status code: <strong><%= statusCode %></strong></p>
+    <a href="/admin" class="button button-primary">Back to dashboard</a>
+  </section>
+<%- include("partials/shell-end", { assetsBasePath }) %>
