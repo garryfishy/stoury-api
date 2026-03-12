@@ -3,6 +3,7 @@ const { app } = require("./helpers/app");
 const {
   cleanupTestArtifacts,
   closeTestDb,
+  db,
   ensureTestDbReady,
 } = require("./helpers/db");
 const {
@@ -111,6 +112,29 @@ describe("admin web integration", () => {
     expect(dashboardResponse.text).toContain('data-page="admin-dashboard"');
     expect(dashboardResponse.text).toContain("Operational enrichment at a glance");
     expect(dashboardResponse.text).toContain("Pending attractions");
+    expect(dashboardResponse.text).toContain("Destinations");
+  });
+
+  test("admin users can open the destinations operations page", async () => {
+    const admin = await createAdminUser("admin-web-destinations");
+    const agent = request.agent(app);
+
+    await agent
+      .post("/admin/login")
+      .type("form")
+      .send({
+        email: admin.email,
+        password: admin.password,
+      });
+
+    const response = await agent.get("/admin/destinations");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.text).toContain('data-page="admin-destinations"');
+    expect(response.text).toContain("Enable destinations and run enrichment");
+    expect(response.text).toContain("Enrich missing");
+    expect(response.text).toContain("Backfill photos");
   });
 
   test("admin users can open the pending enrichment page shell", async () => {
@@ -157,5 +181,41 @@ describe("admin web integration", () => {
 
     expect(dashboardResponse.status).toBe(302);
     expect(dashboardResponse.headers.location).toBe("/admin/login?reason=auth_required");
+  });
+
+  test("admin users can enable or disable a destination from the destinations page", async () => {
+    const admin = await createAdminUser("admin-web-destination-toggle");
+    const agent = request.agent(app);
+    const destination = await db.Destination.findOne({
+      where: {
+        slug: "yogyakarta",
+      },
+    });
+
+    expect(destination).toBeTruthy();
+
+    await agent
+      .post("/admin/login")
+      .type("form")
+      .send({
+        email: admin.email,
+        password: admin.password,
+      });
+
+    const response = await agent
+      .post(`/admin/destinations/${destination.id}/state`)
+      .type("form")
+      .send({
+        isActive: "true",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Destination updated");
+    expect(response.text).toContain('data-page="admin-destinations"');
+
+    const refreshed = await db.Destination.findByPk(destination.id);
+    expect(refreshed.isActive).toBe(true);
+
+    await refreshed.update({ isActive: false });
   });
 });

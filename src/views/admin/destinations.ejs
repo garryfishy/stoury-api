@@ -1,0 +1,105 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <div class="page-stack" data-page="admin-destinations">
+    <section class="hero-card">
+      <div>
+        <p class="admin-eyebrow">Destination operations</p>
+        <h2 class="section-title">Enable destinations and run enrichment</h2>
+        <p class="section-copy">
+          Toggle destination availability and launch destination-scoped enrichment or photo
+          backfill jobs from one place.
+        </p>
+      </div>
+      <div class="status-inline">
+        <%- include("partials/status-badge", {
+          tone: runtimeStatusTone,
+          label: runtimeStatus.status
+        }) %>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <div>
+          <p class="admin-eyebrow">Destination list</p>
+          <h2 class="section-title">Operational controls</h2>
+        </div>
+      </div>
+
+      <div class="destination-admin-list">
+        <% destinations.forEach((destination) => { %>
+          <article class="destination-admin-card">
+            <div class="destination-admin-meta">
+              <div>
+                <h3 class="destination-admin-title"><%= destination.name %></h3>
+                <p class="destination-admin-copy">
+                  <code><%= destination.slug %></code>
+                  • <%= destination.countryName %>
+                  • <%= destination.attractionCount %> attractions
+                </p>
+              </div>
+              <%- include("partials/status-badge", {
+                tone: destination.isActive ? "success" : "neutral",
+                label: destination.isActive ? "enabled" : "disabled"
+              }) %>
+            </div>
+
+            <ul class="destination-admin-stats">
+              <li>Pending enrichment: <strong><%= destination.pendingCount %></strong></li>
+              <li>Photo backfill remaining: <strong><%= destination.photoBackfillCount %></strong></li>
+            </ul>
+
+            <div class="destination-admin-actions">
+              <form
+                method="post"
+                action="/admin/destinations/<%= destination.id %>/state"
+                class="inline-form destination-toggle-form"
+                data-admin-form
+              >
+                <input type="hidden" name="isActive" value="false">
+                <label class="checkbox-field">
+                  <input
+                    type="checkbox"
+                    name="isActive"
+                    value="true"
+                    <%= destination.isActive ? "checked" : "" %>
+                  >
+                  <span>Enabled in public/admin flows</span>
+                </label>
+                <button type="submit" class="button button-secondary">Save</button>
+              </form>
+
+              <form
+                method="post"
+                action="/admin/destinations/<%= destination.id %>/enrich"
+                class="inline-form"
+                data-admin-form
+              >
+                <button type="submit" class="button button-primary">
+                  Enrich missing
+                </button>
+              </form>
+
+              <form
+                method="post"
+                action="/admin/destinations/<%= destination.id %>/backfill-photos"
+                class="inline-form"
+                data-admin-form
+              >
+                <button type="submit" class="button button-secondary">
+                  Backfill photos
+                </button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </div>
+<%- include("partials/shell-end", { assetsBasePath }) %>

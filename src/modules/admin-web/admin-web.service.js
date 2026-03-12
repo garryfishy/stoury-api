@@ -1,6 +1,10 @@
+const { Op } = require("sequelize");
 const { AppError } = require("../../utils/app-error");
+const { getDb, getRequiredModel } = require("../../database/db-context");
+const { readRecordValue } = require("../../utils/model-helpers");
 const {
   DEFAULT_STALE_DAYS,
+  GOOGLE_ENRICHMENT_SOURCE,
 } = require("../admin-attractions/admin-attractions.helpers");
 const {
   getAdminEnrichmentRuntimeStatus,
@@ -9,8 +13,10 @@ const {
   adminAttractionsService,
 } = require("../admin-attractions/admin-attractions.service");
 const { authService } = require("../auth/auth.service");
+const { serializeDestination } = require("../destinations/destinations.helpers");
 
 const createAdminWebService = ({
+  dbProvider = getDb,
   loginService = authService,
   enrichmentService = adminAttractionsService,
   runtimeStatusProvider = getAdminEnrichmentRuntimeStatus,
@@ -30,8 +36,11 @@ const createAdminWebService = ({
   },
 
   async getDashboardData() {
+    const db = dbProvider();
+    const Destination = getRequiredModel(db, "Destination");
+    const Attraction = getRequiredModel(db, "Attraction");
     const staleDays = DEFAULT_STALE_DAYS;
-    const [pendingResult, staleResult, needsReviewResult] = await Promise.all([
+    const [pendingResult, staleResult, needsReviewResult, destinations] = await Promise.all([
       enrichmentService.listPendingEnrichment({
         page: 1,
         limit: 1,
@@ -53,7 +62,51 @@ const createAdminWebService = ({
         staleOnly: false,
         staleDays,
       }),
+      Destination.findAll({
+        order: [["name", "ASC"]],
+      }),
     ]);
+
+    const destinationRows = await Promise.all(
+      destinations.map(async (destination) => {
+        const destinationId = readRecordValue(destination, ["id"]);
+        const [attractionCount, pendingCount, photoBackfillCount] = await Promise.all([
+          Attraction.count({
+            where: {
+              destinationId,
+            },
+          }),
+          Attraction.count({
+            where: {
+              destinationId,
+              isActive: true,
+              externalPlaceId: null,
+            },
+          }),
+          Attraction.count({
+            where: {
+              destinationId,
+              isActive: true,
+              externalSource: GOOGLE_ENRICHMENT_SOURCE,
+              externalPlaceId: {
+                [Op.ne]: null,
+              },
+              [Op.or]: [
+                { thumbnailImageUrl: null },
+                { mainImageUrl: null },
+              ],
+            },
+          }),
+        ]);
+
+        return {
+          ...serializeDestination(destination),
+          attractionCount,
+          pendingCount,
+          photoBackfillCount,
+        };
+      })
+    );
 
     return {
       runtimeStatus: runtimeStatusProvider(),
@@ -63,7 +116,57 @@ const createAdminWebService = ({
         needsReviewCount: needsReviewResult.total,
         staleDays,
       },
+      destinations: destinationRows,
     };
+  },
+
+  async setDestinationActiveState(destinationId, isActive) {
+    const db = dbProvider();
+    const Destination = getRequiredModel(db, "Destination");
+    const destination = await Destination.findByPk(destinationId);
+
+    if (!destination) {
+      throw new AppError("Destination not found.", 404);
+    }
+
+    await destination.update({ isActive });
+
+    return serializeDestination(destination);
+  },
+
+  async enrichDestination(destinationId, { limit = 25 } = {}) {
+    await this.ensureDestinationExists(destinationId);
+
+    return enrichmentService.enrichMissing({
+      destinationId,
+      limit,
+      dryRun: false,
+      staleOnly: false,
+      staleDays: DEFAULT_STALE_DAYS,
+    });
+  },
+
+  async backfillDestinationPhotos(destinationId, { limit = 25, force = false } = {}) {
+    await this.ensureDestinationExists(destinationId);
+
+    return enrichmentService.backfillPhotos({
+      destinationId,
+      limit,
+      dryRun: false,
+      force,
+    });
+  },
+
+  async ensureDestinationExists(destinationId) {
+    const db = dbProvider();
+    const Destination = getRequiredModel(db, "Destination");
+    const destination = await Destination.findByPk(destinationId);
+
+    if (!destination) {
+      throw new AppError("Destination not found.", 404);
+    }
+
+    return destination;
   },
 });
 

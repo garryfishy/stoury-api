@@ -27,6 +27,17 @@ const buildBaseViewModel = ({
   pageTitle,
 });
 
+const coerceFormBoolean = (value, fallback = false) => {
+  const normalizedValue = Array.isArray(value) ? value[value.length - 1] : value;
+  const normalized = String(normalizedValue || "").trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return ["true", "1", "yes", "on"].includes(normalized);
+};
+
 const buildLoginViewModel = ({
   adminUser = null,
   alert = null,
@@ -67,10 +78,16 @@ const buildDashboardViewModel = ({
   }),
   quickLinks: [
     {
+      href: "/admin/destinations",
+      label: "Destinations",
+      description: "Toggle destination availability and launch destination-scoped jobs.",
+      tone: "primary",
+    },
+    {
       href: "/admin/enrichment/pending",
       label: "Pending Enrichment",
       description: "Open the operational enrichment workspace shell.",
-      tone: "primary",
+      tone: "secondary",
     },
     {
       href: "/docs#/Admin%20Attractions",
@@ -89,6 +106,58 @@ const buildDashboardViewModel = ({
   runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
   summary,
 });
+
+const buildDestinationsViewModel = ({
+  adminUser,
+  alert = null,
+  runtimeStatus,
+  summary,
+  destinations = [],
+} = {}) => ({
+  ...buildBaseViewModel({
+    activeNav: "destinations",
+    adminUser,
+    alert,
+    pageTitle: "Admin Destinations",
+  }),
+  runtimeStatus,
+  runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
+  summary,
+  destinations,
+});
+
+const renderDashboardPage = async (req, res, { alert = null, statusCode = 200 } = {}) => {
+  const dashboardData = await adminWebService.getDashboardData();
+
+  return res.status(statusCode).render(
+    "admin/dashboard",
+    buildDashboardViewModel({
+      adminUser: req.adminAuth,
+      alert,
+      runtimeStatus: dashboardData.runtimeStatus,
+      summary: dashboardData.summary,
+    })
+  );
+};
+
+const renderDestinationsPageWithAlert = async (
+  req,
+  res,
+  { alert = null, statusCode = 200 } = {}
+) => {
+  const dashboardData = await adminWebService.getDashboardData();
+
+  return res.status(statusCode).render(
+    "admin/destinations",
+    buildDestinationsViewModel({
+      adminUser: req.adminAuth,
+      alert,
+      runtimeStatus: dashboardData.runtimeStatus,
+      summary: dashboardData.summary,
+      destinations: dashboardData.destinations,
+    })
+  );
+};
 
 const renderLoginPage = (req, res) => {
   const nextPath = sanitizeAdminNextPath(req.query.next);
@@ -155,16 +224,53 @@ const handleLogout = (req, res) => {
 };
 
 const renderDashboard = asyncHandler(async (req, res) => {
-  const dashboardData = await adminWebService.getDashboardData();
+  return renderDashboardPage(req, res);
+});
 
-  return res.render(
-    "admin/dashboard",
-    buildDashboardViewModel({
-      adminUser: req.adminAuth,
-      runtimeStatus: dashboardData.runtimeStatus,
-      summary: dashboardData.summary,
-    })
+const renderDestinationsPage = asyncHandler(async (req, res) => {
+  return renderDestinationsPageWithAlert(req, res);
+});
+
+const updateDestinationState = asyncHandler(async (req, res) => {
+  const isActive = coerceFormBoolean(req.body?.isActive, false);
+  const destination = await adminWebService.setDestinationActiveState(
+    req.params.destinationId,
+    isActive
   );
+
+  return renderDestinationsPageWithAlert(req, res, {
+    alert: {
+      type: "success",
+      title: "Destination updated",
+      message: `${destination.name} is now ${destination.isActive ? "enabled" : "disabled"}.`,
+    },
+  });
+});
+
+const runDestinationEnrichment = asyncHandler(async (req, res) => {
+  const result = await adminWebService.enrichDestination(req.params.destinationId);
+
+  return renderDestinationsPageWithAlert(req, res, {
+    alert: {
+      type: "success",
+      title: "Destination enrichment completed",
+      message: `Processed ${result.attemptedCount} attractions: ${result.enrichedCount} enriched, ${result.needsReviewCount} need review, ${result.failedCount} failed.`,
+    },
+  });
+});
+
+const runDestinationPhotoBackfill = asyncHandler(async (req, res) => {
+  const result = await adminWebService.backfillDestinationPhotos(req.params.destinationId, {
+    force: coerceFormBoolean(req.body?.force, false),
+  });
+
+  return renderDestinationsPageWithAlert(req, res, {
+    alert: {
+      type: "success",
+      title: "Destination photo backfill completed",
+      message: `Processed ${result.attemptedCount} attractions: ${result.updatedCount} updated, ${result.skippedCount} skipped, ${result.failedCount} failed.`,
+    },
+  });
 });
 
 const renderPendingEnrichmentShell = asyncHandler(async (req, res) => {
@@ -252,6 +358,10 @@ module.exports = {
   handleLogout,
   renderAdminNotFound,
   renderDashboard,
+  renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
+  runDestinationEnrichment,
+  runDestinationPhotoBackfill,
+  updateDestinationState,
 };

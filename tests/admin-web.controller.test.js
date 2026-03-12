@@ -1,7 +1,10 @@
 jest.mock("../src/modules/admin-web/admin-web.service", () => ({
   adminWebService: {
+    backfillDestinationPhotos: jest.fn(),
     getDashboardData: jest.fn(),
+    enrichDestination: jest.fn(),
     loginAdmin: jest.fn(),
+    setDestinationActiveState: jest.fn(),
   },
 }));
 
@@ -12,7 +15,11 @@ const {
   handleLogin,
   handleLogout,
   renderDashboard,
+  renderDestinationsPage,
   renderLoginPage,
+  runDestinationEnrichment,
+  runDestinationPhotoBackfill,
+  updateDestinationState,
 } = require("../src/modules/admin-web/admin-web.controller");
 
 const createResponse = () => {
@@ -117,6 +124,141 @@ describe("admin web controller", () => {
         pageTitle: "Admin Dashboard",
         summary: expect.objectContaining({
           pendingCount: 12,
+        }),
+      })
+    );
+  });
+
+  test("renderDestinationsPage renders the destination operations page", async () => {
+    const req = {
+      adminAuth: {
+        email: "admin@example.com",
+      },
+    };
+    const res = createResponse();
+
+    adminWebService.getDashboardData.mockResolvedValue({
+      runtimeStatus: {
+        enabled: true,
+        status: "enabled",
+        message: "Admin attraction enrichment is enabled.",
+      },
+      summary: {
+        pendingCount: 12,
+        staleCount: 4,
+        needsReviewCount: 2,
+        staleDays: 30,
+      },
+      destinations: [{ id: "dest-1", name: "Batam", isActive: true }],
+    });
+
+    await renderDestinationsPage(req, res, jest.fn());
+
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/destinations",
+      expect.objectContaining({
+        pageTitle: "Admin Destinations",
+        destinations: expect.arrayContaining([
+          expect.objectContaining({
+            id: "dest-1",
+          }),
+        ]),
+      })
+    );
+  });
+
+  test("updateDestinationState re-renders the dashboard with a success alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { destinationId: "dest-1" },
+      body: { isActive: "true" },
+    };
+    const res = createResponse();
+    adminWebService.setDestinationActiveState.mockResolvedValue({
+      id: "dest-1",
+      name: "Batam",
+      isActive: true,
+    });
+    adminWebService.getDashboardData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinations: [],
+    });
+
+    await updateDestinationState(req, res, jest.fn());
+
+    expect(adminWebService.setDestinationActiveState).toHaveBeenCalledWith("dest-1", true);
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/destinations",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Destination updated",
+        }),
+      })
+    );
+  });
+
+  test("runDestinationEnrichment re-renders the dashboard with the batch result", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { destinationId: "dest-1" },
+      body: {},
+    };
+    const res = createResponse();
+    adminWebService.enrichDestination.mockResolvedValue({
+      attemptedCount: 5,
+      enrichedCount: 3,
+      needsReviewCount: 1,
+      failedCount: 1,
+    });
+    adminWebService.getDashboardData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinations: [],
+    });
+
+    await runDestinationEnrichment(req, res, jest.fn());
+
+    expect(adminWebService.enrichDestination).toHaveBeenCalledWith("dest-1");
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/destinations",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Destination enrichment completed",
+        }),
+      })
+    );
+  });
+
+  test("runDestinationPhotoBackfill re-renders the dashboard with the photo result", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { destinationId: "dest-1" },
+      body: { force: "true" },
+    };
+    const res = createResponse();
+    adminWebService.backfillDestinationPhotos.mockResolvedValue({
+      attemptedCount: 4,
+      updatedCount: 2,
+      skippedCount: 2,
+      failedCount: 0,
+    });
+    adminWebService.getDashboardData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinations: [],
+    });
+
+    await runDestinationPhotoBackfill(req, res, jest.fn());
+
+    expect(adminWebService.backfillDestinationPhotos).toHaveBeenCalledWith("dest-1", {
+      force: true,
+    });
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/destinations",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Destination photo backfill completed",
         }),
       })
     );
