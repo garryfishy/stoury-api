@@ -8,6 +8,8 @@ const {
   renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
+  runPendingAttractionEnrichment,
+  runPendingBatchEnrichment,
   runDestinationEnrichment,
   runDestinationPhotoBackfill,
   updateDestinationState,
@@ -36,6 +38,8 @@ adminWebRouter.post(
   runDestinationPhotoBackfill
 );
 adminWebRouter.get("/enrichment/pending", renderPendingEnrichmentShell);
+adminWebRouter.post("/enrichment/pending/batch", runPendingBatchEnrichment);
+adminWebRouter.post("/enrichment/:attractionId/enrich", runPendingAttractionEnrichment);
 adminWebRouter.use(renderAdminNotFound);
 adminWebRouter.use(handleAdminWebError);
 

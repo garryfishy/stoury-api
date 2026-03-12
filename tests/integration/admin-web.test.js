@@ -154,7 +154,9 @@ describe("admin web integration", () => {
     expect(pendingResponse.status).toBe(200);
     expect(pendingResponse.headers["content-type"]).toContain("text/html");
     expect(pendingResponse.text).toContain("Pending Enrichment");
-    expect(pendingResponse.text).toContain("Current queue signals");
+    expect(pendingResponse.text).toContain('data-page="admin-pending-enrichment"');
+    expect(pendingResponse.text).toContain("Run batch enrichment");
+    expect(pendingResponse.text).toContain("Apply filters");
   });
 
   test("POST /admin/logout clears the admin cookie", async () => {

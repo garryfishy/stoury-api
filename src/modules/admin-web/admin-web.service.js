@@ -21,6 +21,16 @@ const createAdminWebService = ({
   enrichmentService = adminAttractionsService,
   runtimeStatusProvider = getAdminEnrichmentRuntimeStatus,
 } = {}) => ({
+  async listDestinationOptions() {
+    const db = dbProvider();
+    const Destination = getRequiredModel(db, "Destination");
+    const destinations = await Destination.findAll({
+      order: [["name", "ASC"]],
+    });
+
+    return destinations.map((destination) => serializeDestination(destination));
+  },
+
   async loginAdmin(payload) {
     const authPayload = await loginService.login(payload);
     const roles = authPayload?.user?.roles || [];
@@ -120,6 +130,20 @@ const createAdminWebService = ({
     };
   },
 
+  async getPendingEnrichmentPageData(filters = {}) {
+    const [dashboardData, destinationOptions, pendingEnrichment] = await Promise.all([
+      this.getDashboardData(),
+      this.listDestinationOptions(),
+      enrichmentService.listPendingEnrichment(filters),
+    ]);
+
+    return {
+      ...dashboardData,
+      destinationOptions,
+      pendingEnrichment,
+    };
+  },
+
   async setDestinationActiveState(destinationId, isActive) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
@@ -154,6 +178,20 @@ const createAdminWebService = ({
       limit,
       dryRun: false,
       force,
+    });
+  },
+
+  async enrichPendingAttraction(attractionId) {
+    return enrichmentService.enrichAttraction(attractionId);
+  },
+
+  async enrichPendingBatch(filters = {}) {
+    return enrichmentService.enrichMissing({
+      destinationId: filters.destinationId || null,
+      limit: filters.limit || 25,
+      dryRun: false,
+      staleOnly: filters.staleOnly || false,
+      staleDays: filters.staleDays || DEFAULT_STALE_DAYS,
     });
   },
 

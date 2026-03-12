@@ -126,6 +126,68 @@ const buildDestinationsViewModel = ({
   destinations,
 });
 
+const normalizePendingPageFilters = (query = {}) => ({
+  destinationId: query.destinationId ? String(query.destinationId).trim() : "",
+  status: query.status ? String(query.status).trim() : "pending",
+  page: Math.max(1, Number.parseInt(query.page || "1", 10) || 1),
+  limit: Math.min(100, Math.max(1, Number.parseInt(query.limit || "25", 10) || 25)),
+  staleOnly: coerceFormBoolean(query.staleOnly, false),
+  staleDays: Math.min(365, Math.max(1, Number.parseInt(query.staleDays || "30", 10) || 30)),
+});
+
+const buildPendingPageHref = (filters, page) => {
+  const params = new URLSearchParams();
+
+  if (filters.destinationId) {
+    params.set("destinationId", filters.destinationId);
+  }
+
+  if (filters.status && filters.status !== "pending") {
+    params.set("status", filters.status);
+  }
+
+  if (filters.limit && filters.limit !== 25) {
+    params.set("limit", String(filters.limit));
+  }
+
+  if (filters.staleOnly) {
+    params.set("staleOnly", "true");
+  }
+
+  if (filters.staleDays && filters.staleDays !== 30) {
+    params.set("staleDays", String(filters.staleDays));
+  }
+
+  params.set("page", String(page));
+
+  return `/admin/enrichment/pending?${params.toString()}`;
+};
+
+const buildPendingEnrichmentViewModel = ({
+  adminUser,
+  alert = null,
+  runtimeStatus,
+  summary,
+  pendingEnrichment,
+  destinationOptions = [],
+  filters,
+} = {}) => ({
+  ...buildBaseViewModel({
+    activeNav: "pending-enrichment",
+    adminUser,
+    alert,
+    pageTitle: "Pending Enrichment",
+  }),
+  buildPageHref: (page) => buildPendingPageHref(filters, page),
+  destinationOptions,
+  filters,
+  pendingEnrichment,
+  pagination: pendingEnrichment.pagination,
+  runtimeStatus,
+  runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
+  summary,
+});
+
 const renderDashboardPage = async (req, res, { alert = null, statusCode = 200 } = {}) => {
   const dashboardData = await adminWebService.getDashboardData();
 
@@ -155,6 +217,28 @@ const renderDestinationsPageWithAlert = async (
       runtimeStatus: dashboardData.runtimeStatus,
       summary: dashboardData.summary,
       destinations: dashboardData.destinations,
+    })
+  );
+};
+
+const renderPendingEnrichmentPageWithAlert = async (
+  req,
+  res,
+  { alert = null, statusCode = 200 } = {}
+) => {
+  const filters = normalizePendingPageFilters(req.query);
+  const pageData = await adminWebService.getPendingEnrichmentPageData(filters);
+
+  return res.status(statusCode).render(
+    "admin/pending-placeholder",
+    buildPendingEnrichmentViewModel({
+      adminUser: req.adminAuth,
+      alert,
+      runtimeStatus: pageData.runtimeStatus,
+      summary: pageData.summary,
+      pendingEnrichment: pageData.pendingEnrichment,
+      destinationOptions: pageData.destinationOptions,
+      filters,
     })
   );
 };
@@ -274,22 +358,38 @@ const runDestinationPhotoBackfill = asyncHandler(async (req, res) => {
 });
 
 const renderPendingEnrichmentShell = asyncHandler(async (req, res) => {
-  const dashboardData = await adminWebService.getDashboardData();
+  return renderPendingEnrichmentPageWithAlert(req, res);
+});
 
-  return res.render("admin/pending-placeholder", {
-    ...buildBaseViewModel({
-      activeNav: "pending-enrichment",
-      adminUser: req.adminAuth,
-      pageTitle: "Pending Enrichment",
-    }),
-    buildPageHref: () => "#",
-    pagination: {
-      page: 1,
-      totalPages: 1,
+const runPendingAttractionEnrichment = asyncHandler(async (req, res) => {
+  const result = await adminWebService.enrichPendingAttraction(req.params.attractionId);
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: result.outcome === "failed" ? "danger" : "success",
+      title: "Attraction enrichment processed",
+      message:
+        result.outcome === "enriched"
+          ? `${result.attraction.name} was enriched successfully.`
+          : result.reason || result.error || `${result.attraction.name} requires review.`,
     },
-    runtimeStatus: dashboardData.runtimeStatus,
-    runtimeStatusTone: getRuntimeStatusTone(dashboardData.runtimeStatus.status),
-    summary: dashboardData.summary,
+  });
+});
+
+const runPendingBatchEnrichment = asyncHandler(async (req, res) => {
+  const filters = normalizePendingPageFilters(req.body);
+  const result = await adminWebService.enrichPendingBatch(filters);
+  req.query = {
+    ...req.query,
+    ...filters,
+  };
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: result.failedCount > 0 ? "warning" : "success",
+      title: "Batch enrichment processed",
+      message: `Processed ${result.attemptedCount} attractions: ${result.enrichedCount} enriched, ${result.needsReviewCount} need review, ${result.failedCount} failed.`,
+    },
   });
 });
 
@@ -361,6 +461,8 @@ module.exports = {
   renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
+  runPendingAttractionEnrichment,
+  runPendingBatchEnrichment,
   runDestinationEnrichment,
   runDestinationPhotoBackfill,
   updateDestinationState,

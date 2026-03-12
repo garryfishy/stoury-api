@@ -6,14 +6,14 @@
   pageDescription,
   pageTitle
 }) %>
-  <div class="page-stack" data-page="admin-pending-foundation">
+  <div class="page-stack" data-page="admin-pending-enrichment">
     <section class="hero-card">
       <div>
-        <p class="admin-eyebrow">Foundation route</p>
-        <h2 class="section-title">Pending enrichment workspace shell</h2>
+        <p class="admin-eyebrow">Operational queue</p>
+        <h2 class="section-title">Pending enrichment workspace</h2>
         <p class="section-copy">
-          This page is intentionally lightweight for AGENT 3 to extend with the full list,
-          filters, and action flows.
+          Filter the queue, enrich one attraction at a time, or run a bounded batch against the
+          current selection.
         </p>
       </div>
       <div class="status-inline">
@@ -33,10 +33,144 @@
         <li>Needs review: <strong><%= summary.needsReviewCount %></strong></li>
         <li>Stale enriched records: <strong><%= summary.staleCount %></strong></li>
       </ul>
-      <p class="section-copy">
-        Use this route as the shared shell for the list page. The pagination partial is already
-        available below for the next phase.
-      </p>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Filters</h2>
+      </div>
+
+      <form method="get" action="/admin/enrichment/pending" class="admin-form admin-form-inline">
+        <label class="form-field">
+          <span>Destination</span>
+          <select name="destinationId">
+            <option value="">All destinations</option>
+            <% destinationOptions.forEach((destination) => { %>
+              <option
+                value="<%= destination.id %>"
+                <%= filters.destinationId === destination.id ? "selected" : "" %>
+              >
+                <%= destination.name %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Status</span>
+          <select name="status">
+            <% ["pending", "needs_review", "failed", "enriched"].forEach((statusOption) => { %>
+              <option
+                value="<%= statusOption %>"
+                <%= filters.status === statusOption ? "selected" : "" %>
+              >
+                <%= statusOption %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Limit</span>
+          <input type="number" name="limit" min="1" max="100" value="<%= filters.limit %>">
+        </label>
+
+        <label class="form-field">
+          <span>Stale days</span>
+          <input type="number" name="staleDays" min="1" max="365" value="<%= filters.staleDays %>">
+        </label>
+
+        <label class="checkbox-field checkbox-field-block">
+          <input
+            type="checkbox"
+            name="staleOnly"
+            value="true"
+            <%= filters.staleOnly ? "checked" : "" %>
+          >
+          <span>Only stale records</span>
+        </label>
+
+        <button type="submit" class="button button-secondary">Apply filters</button>
+      </form>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <div>
+          <h2 class="section-title">Batch action</h2>
+          <p class="section-copy">Runs against the current filter selection.</p>
+        </div>
+      </div>
+
+      <form method="post" action="/admin/enrichment/pending/batch" class="inline-form" data-admin-form>
+        <input type="hidden" name="destinationId" value="<%= filters.destinationId %>">
+        <input type="hidden" name="status" value="<%= filters.status %>">
+        <input type="hidden" name="limit" value="<%= filters.limit %>">
+        <input type="hidden" name="staleOnly" value="<%= filters.staleOnly ? "true" : "false" %>">
+        <input type="hidden" name="staleDays" value="<%= filters.staleDays %>">
+        <button type="submit" class="button button-primary">Run batch enrichment</button>
+      </form>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Queue results</h2>
+        <p class="section-copy"><strong><%= pendingEnrichment.total %></strong> matches</p>
+      </div>
+
+      <% if (!pendingEnrichment.items.length) { %>
+        <p class="section-copy">No attractions matched the current filter set.</p>
+      <% } else { %>
+        <div class="pending-admin-list">
+          <% pendingEnrichment.items.forEach((item) => { %>
+            <article class="pending-admin-card">
+              <div class="pending-admin-meta">
+                <div>
+                  <h3 class="destination-admin-title"><%= item.name %></h3>
+                  <p class="destination-admin-copy">
+                    <%= item.destination?.name || "Unknown destination" %>
+                    <% if (item.coordinates) { %>
+                      • <%= item.coordinates.latitude %>, <%= item.coordinates.longitude %>
+                    <% } %>
+                  </p>
+                </div>
+                <%- include("partials/status-badge", {
+                  tone: item.enrichment.status === "failed"
+                    ? "danger"
+                    : item.enrichment.status === "needs_review"
+                      ? "warning"
+                      : item.enrichment.status === "enriched"
+                        ? "success"
+                        : "neutral",
+                  label: item.enrichment.status
+                }) %>
+              </div>
+
+              <p class="section-copy">
+                <% if (item.enrichment.error) { %>
+                  <strong>Last error:</strong> <%= item.enrichment.error %>
+                <% } else if (item.enrichment.externalPlaceId) { %>
+                  <strong>Google place:</strong> <%= item.enrichment.externalPlaceId %>
+                <% } else { %>
+                  No Google place attached yet.
+                <% } %>
+              </p>
+
+              <div class="destination-admin-actions">
+                <form
+                  method="post"
+                  action="/admin/enrichment/<%= item.id %>/enrich?page=<%= pagination.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+                  class="inline-form"
+                  data-admin-form
+                >
+                  <button type="submit" class="button button-primary">Enrich now</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+
       <%- include("partials/pagination", { pagination, buildPageHref }) %>
     </section>
   </div>

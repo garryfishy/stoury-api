@@ -2,7 +2,10 @@ jest.mock("../src/modules/admin-web/admin-web.service", () => ({
   adminWebService: {
     backfillDestinationPhotos: jest.fn(),
     getDashboardData: jest.fn(),
+    getPendingEnrichmentPageData: jest.fn(),
     enrichDestination: jest.fn(),
+    enrichPendingAttraction: jest.fn(),
+    enrichPendingBatch: jest.fn(),
     loginAdmin: jest.fn(),
     setDestinationActiveState: jest.fn(),
   },
@@ -17,7 +20,10 @@ const {
   renderDashboard,
   renderDestinationsPage,
   renderLoginPage,
+  renderPendingEnrichmentShell,
   runDestinationEnrichment,
+  runPendingAttractionEnrichment,
+  runPendingBatchEnrichment,
   runDestinationPhotoBackfill,
   updateDestinationState,
 } = require("../src/modules/admin-web/admin-web.controller");
@@ -259,6 +265,106 @@ describe("admin web controller", () => {
       expect.objectContaining({
         alert: expect.objectContaining({
           title: "Destination photo backfill completed",
+        }),
+      })
+    );
+  });
+
+  test("renderPendingEnrichmentShell renders the operational pending page", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [{ id: "dest-1", name: "Batam" }],
+      pendingEnrichment: {
+        items: [{ id: "attr-1", name: "Pantai Nongsa", enrichment: { status: "pending" } }],
+        total: 1,
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    await renderPendingEnrichmentShell(req, res, jest.fn());
+
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        pageTitle: "Pending Enrichment",
+        pendingEnrichment: expect.objectContaining({
+          total: 1,
+        }),
+      })
+    );
+  });
+
+  test("runPendingAttractionEnrichment re-renders the pending page with an alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { attractionId: "attr-1" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.enrichPendingAttraction.mockResolvedValue({
+      outcome: "enriched",
+      attraction: { name: "Pantai Nongsa" },
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: { items: [], total: 0, pagination: { page: 1, totalPages: 1 } },
+    });
+
+    await runPendingAttractionEnrichment(req, res, jest.fn());
+
+    expect(adminWebService.enrichPendingAttraction).toHaveBeenCalledWith("attr-1");
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Attraction enrichment processed",
+        }),
+      })
+    );
+  });
+
+  test("runPendingBatchEnrichment re-renders the pending page with a batch alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      body: { destinationId: "dest-1", status: "pending", limit: "10", staleOnly: "false", staleDays: "30" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.enrichPendingBatch.mockResolvedValue({
+      attemptedCount: 5,
+      enrichedCount: 3,
+      needsReviewCount: 1,
+      failedCount: 1,
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: { items: [], total: 0, pagination: { page: 1, totalPages: 1 } },
+    });
+
+    await runPendingBatchEnrichment(req, res, jest.fn());
+
+    expect(adminWebService.enrichPendingBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationId: "dest-1",
+        status: "pending",
+        limit: 10,
+      })
+    );
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Batch enrichment processed",
         }),
       })
     );

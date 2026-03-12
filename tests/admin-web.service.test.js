@@ -16,6 +16,7 @@ describe("admin web service", () => {
         listPendingEnrichment: jest.fn(),
         backfillPhotos: jest.fn(),
         enrichMissing: jest.fn(),
+        enrichAttraction: jest.fn(),
       },
       dbProvider: jest.fn(),
       runtimeStatusProvider: jest.fn(),
@@ -163,6 +164,7 @@ describe("admin web service", () => {
       listPendingEnrichment: jest.fn(),
       enrichMissing: jest.fn().mockResolvedValue({ attemptedCount: 5 }),
       backfillPhotos: jest.fn().mockResolvedValue({ attemptedCount: 4 }),
+      enrichAttraction: jest.fn().mockResolvedValue({ outcome: "enriched" }),
     };
     const service = createAdminWebService({
       dbProvider: () => ({
@@ -190,6 +192,66 @@ describe("admin web service", () => {
         dryRun: false,
         force: true,
       })
+    );
+  });
+
+  test("getPendingEnrichmentPageData combines queue data with destination options", async () => {
+    const enrichmentService = {
+      listPendingEnrichment: jest
+        .fn()
+        .mockResolvedValueOnce({ total: 14 })
+        .mockResolvedValueOnce({ total: 3 })
+        .mockResolvedValueOnce({ total: 2 })
+        .mockResolvedValueOnce({
+          items: [{ id: "attr-1" }],
+          total: 1,
+          pagination: { page: 1, totalPages: 1 },
+        }),
+      enrichMissing: jest.fn(),
+      backfillPhotos: jest.fn(),
+      enrichAttraction: jest.fn(),
+    };
+    const destinations = [
+      {
+        id: "dest-1",
+        name: "Batam",
+        slug: "batam",
+        isActive: true,
+        countryName: "Indonesia",
+      },
+    ];
+    const service = createAdminWebService({
+      dbProvider: () => ({
+        Destination: {
+          findAll: jest.fn().mockResolvedValue(destinations),
+        },
+        Attraction: {
+          count: jest.fn().mockResolvedValue(0),
+        },
+      }),
+      loginService: { login: jest.fn() },
+      enrichmentService,
+      runtimeStatusProvider: jest.fn().mockReturnValue({
+        status: "enabled",
+        message: "ok",
+      }),
+    });
+
+    const result = await service.getPendingEnrichmentPageData({
+      page: 1,
+      limit: 25,
+      status: "pending",
+      staleOnly: false,
+      staleDays: 30,
+    });
+
+    expect(result.pendingEnrichment).toEqual(
+      expect.objectContaining({
+        total: 1,
+      })
+    );
+    expect(result.destinationOptions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "dest-1" })])
     );
   });
 });
