@@ -3,10 +3,13 @@ jest.mock("../src/modules/admin-web/admin-web.service", () => ({
     backfillDestinationPhotos: jest.fn(),
     getDashboardData: jest.fn(),
     getPendingEnrichmentPageData: jest.fn(),
+    getPendingReviewPageData: jest.fn(),
     enrichDestination: jest.fn(),
     enrichPendingAttraction: jest.fn(),
     enrichPendingBatch: jest.fn(),
     loginAdmin: jest.fn(),
+    rejectPendingReview: jest.fn(),
+    resolvePendingReview: jest.fn(),
     setDestinationActiveState: jest.fn(),
   },
 }));
@@ -21,6 +24,9 @@ const {
   renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
+  renderPendingReviewPage,
+  rejectPendingReview,
+  resolvePendingReview,
   runDestinationEnrichment,
   runPendingAttractionEnrichment,
   runPendingBatchEnrichment,
@@ -365,6 +371,106 @@ describe("admin web controller", () => {
       expect.objectContaining({
         alert: expect.objectContaining({
           title: "Batch enrichment processed",
+        }),
+      })
+    );
+  });
+
+  test("renderPendingReviewPage renders the manual review screen", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { attractionId: "attr-1" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.getPendingReviewPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      review: {
+        attraction: { id: "attr-1", name: "Pantai Nongsa" },
+        candidates: [{ placeId: "google-place-1", name: "Pantai Nongsa" }],
+        outcome: "needs_review",
+      },
+    });
+
+    await renderPendingReviewPage(req, res, jest.fn());
+
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-review",
+      expect.objectContaining({
+        pageTitle: "Review Enrichment Match",
+        review: expect.objectContaining({
+          attraction: expect.objectContaining({
+            id: "attr-1",
+          }),
+        }),
+      })
+    );
+  });
+
+  test("resolvePendingReview re-renders the queue page with a success alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { attractionId: "attr-1" },
+      body: { placeId: "google-place-1" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.resolvePendingReview.mockResolvedValue({
+      attraction: { name: "Pantai Nongsa" },
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: { items: [], total: 0, pagination: { page: 1, totalPages: 1 } },
+    });
+
+    await resolvePendingReview(req, res, jest.fn());
+
+    expect(adminWebService.resolvePendingReview).toHaveBeenCalledWith(
+      "attr-1",
+      "google-place-1"
+    );
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Review resolved",
+        }),
+      })
+    );
+  });
+
+  test("rejectPendingReview re-renders the queue page with a warning alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { attractionId: "attr-1" },
+      body: { reason: "No suitable Google match." },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.rejectPendingReview.mockResolvedValue({
+      attraction: { name: "Pantai Nongsa" },
+      reason: "No suitable Google match.",
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: { items: [], total: 0, pagination: { page: 1, totalPages: 1 } },
+    });
+
+    await rejectPendingReview(req, res, jest.fn());
+
+    expect(adminWebService.rejectPendingReview).toHaveBeenCalledWith(
+      "attr-1",
+      "No suitable Google match."
+    );
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Review rejected",
         }),
       })
     );

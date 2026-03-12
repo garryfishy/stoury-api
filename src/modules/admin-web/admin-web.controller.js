@@ -188,6 +188,26 @@ const buildPendingEnrichmentViewModel = ({
   summary,
 });
 
+const buildPendingReviewViewModel = ({
+  adminUser,
+  alert = null,
+  runtimeStatus,
+  review,
+  filters,
+} = {}) => ({
+  ...buildBaseViewModel({
+    activeNav: "pending-enrichment",
+    adminUser,
+    alert,
+    pageTitle: "Review Enrichment Match",
+  }),
+  backHref: buildPendingPageHref(filters, filters.page || 1),
+  filters,
+  review,
+  runtimeStatus,
+  runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
+});
+
 const renderDashboardPage = async (req, res, { alert = null, statusCode = 200 } = {}) => {
   const dashboardData = await adminWebService.getDashboardData();
 
@@ -241,6 +261,27 @@ const renderPendingEnrichmentPageWithAlert = async (
       filters,
     })
   );
+};
+
+const renderPendingReviewPageWithAlert = async (
+  req,
+  res,
+  attractionId,
+  { alert = null, statusCode = 200 } = {}
+) => {
+    const filters = normalizePendingPageFilters(req.query);
+    const pageData = await adminWebService.getPendingReviewPageData(attractionId, filters);
+
+    return res.status(statusCode).render(
+      "admin/pending-review",
+      buildPendingReviewViewModel({
+        adminUser: req.adminAuth,
+        alert,
+        runtimeStatus: pageData.runtimeStatus,
+        review: pageData.review,
+        filters,
+      })
+    );
 };
 
 const renderLoginPage = (req, res) => {
@@ -393,6 +434,40 @@ const runPendingBatchEnrichment = asyncHandler(async (req, res) => {
   });
 });
 
+const renderPendingReviewPage = asyncHandler(async (req, res) => {
+  return renderPendingReviewPageWithAlert(req, res, req.params.attractionId);
+});
+
+const resolvePendingReview = asyncHandler(async (req, res) => {
+  const result = await adminWebService.resolvePendingReview(
+    req.params.attractionId,
+    req.body?.placeId
+  );
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: "success",
+      title: "Review resolved",
+      message: `${result.attraction.name} is now attached to the selected Google place.`,
+    },
+  });
+});
+
+const rejectPendingReview = asyncHandler(async (req, res) => {
+  const result = await adminWebService.rejectPendingReview(
+    req.params.attractionId,
+    req.body?.reason || "Manual review rejected all candidate matches."
+  );
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: "warning",
+      title: "Review rejected",
+      message: result.reason || `${result.attraction.name} was marked as failed.`,
+    },
+  });
+});
+
 const renderAdminNotFound = (req, res) =>
   res.status(404).render("admin/error", {
     ...buildBaseViewModel({
@@ -461,6 +536,9 @@ module.exports = {
   renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
+  renderPendingReviewPage,
+  resolvePendingReview,
+  rejectPendingReview,
   runPendingAttractionEnrichment,
   runPendingBatchEnrichment,
   runDestinationEnrichment,

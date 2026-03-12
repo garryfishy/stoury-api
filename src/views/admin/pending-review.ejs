@@ -1,0 +1,114 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <div class="page-stack" data-page="admin-pending-review">
+    <section class="hero-card">
+      <div>
+        <p class="admin-eyebrow">Manual review</p>
+        <h2 class="section-title"><%= review.attraction.name %></h2>
+        <p class="section-copy">
+          Review the candidate Google places below and approve the correct match or reject them.
+        </p>
+      </div>
+      <div class="status-inline">
+        <%- include("partials/status-badge", {
+          tone: review.outcome === "needs_review"
+            ? "warning"
+            : review.outcome === "enriched"
+              ? "success"
+              : "danger",
+          label: review.outcome
+        }) %>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Attraction context</h2>
+        <a href="<%= backHref %>" class="button button-secondary">Back to queue</a>
+      </div>
+      <ul class="stat-list">
+        <li>Destination: <strong><%= review.attraction.destination?.name || "Unknown" %></strong></li>
+        <li>Query: <strong><%= review.query || "No query available" %></strong></li>
+        <li>Candidates found: <strong><%= review.candidateCount %></strong></li>
+      </ul>
+      <% if (review.reason) { %>
+        <p class="section-copy"><strong>Review note:</strong> <%= review.reason %></p>
+      <% } %>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Candidate matches</h2>
+      </div>
+
+      <% if (!review.candidates.length) { %>
+        <p class="section-copy">No review candidates are available for this attraction right now.</p>
+      <% } else { %>
+        <div class="pending-admin-list">
+          <% review.candidates.forEach((candidate) => { %>
+            <article class="pending-admin-card">
+              <div class="pending-admin-meta">
+                <div>
+                  <h3 class="destination-admin-title"><%= candidate.name %></h3>
+                  <p class="destination-admin-copy"><%= candidate.formattedAddress %></p>
+                </div>
+                <%- include("partials/status-badge", {
+                  tone: candidate.exactNameMatch ? "success" : candidate.partialNameMatch ? "warning" : "neutral",
+                  label: `${candidate.score || 0} pts`
+                }) %>
+              </div>
+
+              <ul class="destination-admin-stats">
+                <li>Place ID: <strong><%= candidate.placeId %></strong></li>
+                <li>Rating: <strong><%= candidate.rating ?? "n/a" %></strong></li>
+                <li>Reviews: <strong><%= candidate.userRatingsTotal ?? "n/a" %></strong></li>
+                <li>Distance: <strong><%= candidate.distanceMeters ?? "n/a" %></strong></li>
+              </ul>
+
+              <div class="destination-admin-actions">
+                <form
+                  method="post"
+                  action="/admin/enrichment/<%= review.attraction.id %>/review/resolve?page=<%= filters.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+                  class="inline-form"
+                  data-admin-form
+                >
+                  <input type="hidden" name="placeId" value="<%= candidate.placeId %>">
+                  <button type="submit" class="button button-primary">Approve this match</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <h2 class="section-title">Reject all candidates</h2>
+      </div>
+      <form
+        method="post"
+        action="/admin/enrichment/<%= review.attraction.id %>/review/reject?page=<%= filters.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+        class="admin-form"
+        data-admin-form
+      >
+        <label class="form-field">
+          <span>Reason</span>
+          <input
+            type="text"
+            name="reason"
+            value="Manual review rejected all candidate matches."
+            maxlength="255"
+          >
+        </label>
+        <button type="submit" class="button button-secondary">Reject candidates</button>
+      </form>
+    </section>
+  </div>
+<%- include("partials/shell-end", { assetsBasePath }) %>

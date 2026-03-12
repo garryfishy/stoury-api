@@ -576,6 +576,133 @@ const createAdminAttractionsService = ({
     }
   };
 
+  const getReviewCandidates = async (db, attractionId, transaction = null) => {
+    const { attraction, destination, hasState } = await loadAttractionContext(
+      db,
+      attractionId,
+      transaction
+    );
+    const query = buildGoogleSearchQuery({ attraction, destination });
+    const location = getAttractionCoordinates(attraction);
+    const candidates = await googlePlacesClient.textSearch({
+      query,
+      location,
+      radiusMeters: GOOGLE_TEXT_SEARCH_RADIUS_METERS,
+    });
+    const match = pickEnrichmentMatch({
+      attraction,
+      candidates,
+    });
+
+    return buildOutcomePayload({
+      attraction,
+      destination,
+      hasState,
+      query,
+      outcome: match.outcome,
+      reason: match.reason,
+      candidateCount: match.candidateCount,
+      candidates: match.candidates,
+      selectedPlace: match.selectedCandidate,
+    });
+  };
+
+  const resolveReviewMatch = async (
+    db,
+    attractionId,
+    placeId,
+    { transaction = null } = {}
+  ) => {
+    const { attraction, destination, hasState, Attraction } = await loadAttractionContext(
+      db,
+      attractionId,
+      transaction
+    );
+    const preview = await getReviewCandidates(db, attractionId, transaction);
+    const selectedCandidate = preview.candidates.find(
+      (candidate) => candidate.placeId === placeId
+    );
+
+    if (!selectedCandidate) {
+      throw new AppError(
+        "Selected place is not available in the current review candidates.",
+        422
+      );
+    }
+
+    const details = await googlePlacesClient.getPlaceDetails(placeId);
+    await assertNoDuplicateExternalPlace(
+      Attraction,
+      readRecordValue(attraction, ["id"]),
+      details.placeId,
+      transaction
+    );
+
+    const attemptedAt = new Date();
+    const enrichmentValues = {
+      externalSource: GOOGLE_ENRICHMENT_SOURCE,
+      externalPlaceId: details.placeId,
+      externalRating: details.rating,
+      externalReviewCount: details.userRatingsTotal,
+      externalLastSyncedAt: attemptedAt,
+      enrichmentStatus: "enriched",
+      enrichmentError: null,
+      enrichmentAttemptedAt: attemptedAt,
+    };
+
+    await updateEnrichmentState(attraction, {
+      hasState,
+      transaction,
+      values: enrichmentValues,
+    });
+
+    return buildOutcomePayload({
+      attraction,
+      destination,
+      hasState,
+      query: preview.query,
+      outcome: "enriched",
+      reason: null,
+      candidateCount: preview.candidateCount,
+      candidates: preview.candidates,
+      selectedPlace: details,
+    });
+  };
+
+  const rejectReviewMatch = async (
+    db,
+    attractionId,
+    { reason = "Manual review rejected all candidate matches.", transaction = null } = {}
+  ) => {
+    const { attraction, destination, hasState } = await loadAttractionContext(
+      db,
+      attractionId,
+      transaction
+    );
+    const attemptedAt = new Date();
+    const rejectionValues = {
+      enrichmentStatus: "failed",
+      enrichmentError: reason,
+      enrichmentAttemptedAt: attemptedAt,
+    };
+
+    await updateEnrichmentState(attraction, {
+      hasState,
+      transaction,
+      values: rejectionValues,
+    });
+
+    return buildOutcomePayload({
+      attraction,
+      destination,
+      hasState,
+      query: null,
+      outcome: "failed",
+      reason,
+      error: reason,
+    });
+  };
+
   const buildPhotoPersistenceValues = (attraction) => ({
     thumbnailImageUrl: buildAttractionPhotoUrl(
       attraction,
@@ -774,6 +901,31 @@ const createAdminAttractionsService = ({
         failedCount: results.filter((result) => result.outcome === "failed").length,
         results,
       };
+    },
+
+    async getReviewCandidates(attractionId) {
+      const db = dbProvider();
+      return getReviewCandidates(db, attractionId);
+    },
+
+    async resolveReview(attractionId, placeId) {
+      const db = dbProvider();
+
+      return withTransaction(
+        async (transaction) =>
+          resolveReviewMatch(db, attractionId, placeId, { transaction }),
+        db
+      );
+    },
+
+    async rejectReview(attractionId, reason) {
+      const db = dbProvider();
+
+      return withTransaction(
+        async (transaction) =>
+          rejectReviewMatch(db, attractionId, { reason, transaction }),
+        db
+      );
     },
   };
 };

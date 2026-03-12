@@ -17,6 +17,9 @@ describe("admin web service", () => {
         backfillPhotos: jest.fn(),
         enrichMissing: jest.fn(),
         enrichAttraction: jest.fn(),
+        getReviewCandidates: jest.fn(),
+        resolveReview: jest.fn(),
+        rejectReview: jest.fn(),
       },
       dbProvider: jest.fn(),
       runtimeStatusProvider: jest.fn(),
@@ -56,6 +59,9 @@ describe("admin web service", () => {
         .mockResolvedValueOnce({ total: 14 })
         .mockResolvedValueOnce({ total: 3 })
         .mockResolvedValueOnce({ total: 2 }),
+      getReviewCandidates: jest.fn(),
+      resolveReview: jest.fn(),
+      rejectReview: jest.fn(),
     };
     const runtimeStatus = {
       enabled: true,
@@ -148,7 +154,12 @@ describe("admin web service", () => {
         },
       }),
       loginService: { login: jest.fn() },
-      enrichmentService: { listPendingEnrichment: jest.fn() },
+      enrichmentService: {
+        listPendingEnrichment: jest.fn(),
+        getReviewCandidates: jest.fn(),
+        resolveReview: jest.fn(),
+        rejectReview: jest.fn(),
+      },
       runtimeStatusProvider: jest.fn(),
     });
 
@@ -165,6 +176,9 @@ describe("admin web service", () => {
       enrichMissing: jest.fn().mockResolvedValue({ attemptedCount: 5 }),
       backfillPhotos: jest.fn().mockResolvedValue({ attemptedCount: 4 }),
       enrichAttraction: jest.fn().mockResolvedValue({ outcome: "enriched" }),
+      getReviewCandidates: jest.fn().mockResolvedValue({ candidates: [] }),
+      resolveReview: jest.fn().mockResolvedValue({ outcome: "enriched" }),
+      rejectReview: jest.fn().mockResolvedValue({ outcome: "failed" }),
     };
     const service = createAdminWebService({
       dbProvider: () => ({
@@ -193,6 +207,10 @@ describe("admin web service", () => {
         force: true,
       })
     );
+    await service.resolvePendingReview("attr-1", "google-place-1");
+    await service.rejectPendingReview("attr-1", "no match");
+    expect(enrichmentService.resolveReview).toHaveBeenCalledWith("attr-1", "google-place-1");
+    expect(enrichmentService.rejectReview).toHaveBeenCalledWith("attr-1", "no match");
   });
 
   test("getPendingEnrichmentPageData combines queue data with destination options", async () => {
@@ -210,6 +228,9 @@ describe("admin web service", () => {
       enrichMissing: jest.fn(),
       backfillPhotos: jest.fn(),
       enrichAttraction: jest.fn(),
+      getReviewCandidates: jest.fn(),
+      resolveReview: jest.fn(),
+      rejectReview: jest.fn(),
     };
     const destinations = [
       {
@@ -252,6 +273,62 @@ describe("admin web service", () => {
     );
     expect(result.destinationOptions).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "dest-1" })])
+    );
+  });
+
+  test("getPendingReviewPageData combines queue data with manual review candidates", async () => {
+    const enrichmentService = {
+      listPendingEnrichment: jest
+        .fn()
+        .mockResolvedValueOnce({ total: 14 })
+        .mockResolvedValueOnce({ total: 3 })
+        .mockResolvedValueOnce({ total: 2 })
+        .mockResolvedValueOnce({
+          items: [],
+          total: 0,
+          pagination: { page: 1, totalPages: 1 },
+        }),
+      enrichMissing: jest.fn(),
+      backfillPhotos: jest.fn(),
+      enrichAttraction: jest.fn(),
+      getReviewCandidates: jest.fn().mockResolvedValue({
+        attraction: { id: "attr-1", name: "Pantai Nongsa" },
+        candidates: [{ placeId: "google-place-1" }],
+      }),
+      resolveReview: jest.fn(),
+      rejectReview: jest.fn(),
+    };
+    const service = createAdminWebService({
+      dbProvider: () => ({
+        Destination: {
+          findAll: jest.fn().mockResolvedValue([]),
+        },
+        Attraction: {
+          count: jest.fn().mockResolvedValue(0),
+        },
+      }),
+      loginService: { login: jest.fn() },
+      enrichmentService,
+      runtimeStatusProvider: jest.fn().mockReturnValue({
+        status: "enabled",
+        message: "ok",
+      }),
+    });
+
+    const result = await service.getPendingReviewPageData("attr-1", {
+      page: 1,
+      limit: 25,
+      status: "needs_review",
+      staleOnly: false,
+      staleDays: 30,
+    });
+
+    expect(result.review).toEqual(
+      expect.objectContaining({
+        attraction: expect.objectContaining({
+          id: "attr-1",
+        }),
+      })
     );
   });
 });

@@ -426,4 +426,138 @@ describe("admin attractions service", () => {
       })
     );
   });
+
+  test("getReviewCandidates returns ranked candidates for manual review", async () => {
+    const attractionRecord = createAttractionRecord({
+      enrichmentStatus: "needs_review",
+    });
+    const db = buildDb(attractionRecord);
+    const googlePlacesClient = {
+      textSearch: jest.fn().mockResolvedValue([
+        {
+          placeId: "google-place-1",
+          name: "Pantai Nongsa",
+          formattedAddress: "Nongsa, Batam City, Indonesia",
+          location: {
+            latitude: 1.1871,
+            longitude: 104.1191,
+          },
+          rating: 4.4,
+          userRatingsTotal: 1234,
+          types: ["tourist_attraction"],
+        },
+        {
+          placeId: "google-place-2",
+          name: "Pantai Nongsa",
+          formattedAddress: "Nongsa, Batam City, Indonesia",
+          location: {
+            latitude: 1.1872,
+            longitude: 104.1192,
+          },
+          rating: 4.3,
+          userRatingsTotal: 1100,
+          types: ["lodging", "tourist_attraction"],
+        },
+      ]),
+      getPlaceDetails: jest.fn(),
+    };
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await service.getReviewCandidates(attractionRecord.id);
+
+    expect(result.outcome).toBe("needs_review");
+    expect(result.candidateCount).toBe(2);
+    expect(result.candidates).toHaveLength(2);
+    expect(attractionRecord.update).not.toHaveBeenCalled();
+  });
+
+  test("resolveReview saves the selected manual review candidate", async () => {
+    const attractionRecord = createAttractionRecord({
+      enrichmentStatus: "needs_review",
+    });
+    const db = buildDb(attractionRecord);
+    const googlePlacesClient = {
+      textSearch: jest.fn().mockResolvedValue([
+        {
+          placeId: "google-place-1",
+          name: "Pantai Nongsa",
+          formattedAddress: "Nongsa, Batam City, Indonesia",
+          location: {
+            latitude: 1.1871,
+            longitude: 104.1191,
+          },
+          rating: 4.4,
+          userRatingsTotal: 1234,
+          types: ["tourist_attraction"],
+        },
+        {
+          placeId: "google-place-2",
+          name: "Pantai Nongsa",
+          formattedAddress: "Nongsa, Batam City, Indonesia",
+          location: {
+            latitude: 1.1872,
+            longitude: 104.1192,
+          },
+          rating: 4.3,
+          userRatingsTotal: 1100,
+          types: ["lodging", "tourist_attraction"],
+        },
+      ]),
+      getPlaceDetails: jest.fn().mockResolvedValue({
+        placeId: "google-place-2",
+        name: "Pantai Nongsa",
+        formattedAddress: "Nongsa, Batam City, Indonesia",
+        location: {
+          latitude: 1.1872,
+          longitude: 104.1192,
+        },
+        rating: 4.3,
+        userRatingsTotal: 1100,
+        types: ["lodging", "tourist_attraction"],
+      }),
+    };
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+    });
+
+    const result = await service.resolveReview(attractionRecord.id, "google-place-2");
+
+    expect(result.outcome).toBe("enriched");
+    expect(attractionRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalPlaceId: "google-place-2",
+        enrichmentStatus: "enriched",
+      }),
+      { transaction: null }
+    );
+  });
+
+  test("rejectReview marks the attraction as failed", async () => {
+    const attractionRecord = createAttractionRecord({
+      enrichmentStatus: "needs_review",
+    });
+    const db = buildDb(attractionRecord);
+    const service = createAdminAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient: {},
+    });
+
+    const result = await service.rejectReview(
+      attractionRecord.id,
+      "Manual review rejected all candidate matches."
+    );
+
+    expect(result.outcome).toBe("failed");
+    expect(attractionRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enrichmentStatus: "failed",
+        enrichmentError: "Manual review rejected all candidate matches.",
+      }),
+      { transaction: null }
+    );
+  });
 });

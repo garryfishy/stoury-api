@@ -144,6 +144,18 @@ const createAdminWebService = ({
     };
   },
 
+  async getPendingReviewPageData(attractionId, filters = {}) {
+    const [pageData, review] = await Promise.all([
+      this.getPendingEnrichmentPageData(filters),
+      enrichmentService.getReviewCandidates(attractionId),
+    ]);
+
+    return {
+      ...pageData,
+      review,
+    };
+  },
+
   async setDestinationActiveState(destinationId, isActive) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
@@ -193,6 +205,14 @@ const createAdminWebService = ({
       staleOnly: filters.staleOnly || false,
       staleDays: filters.staleDays || DEFAULT_STALE_DAYS,
     });
+  },
+
+  async resolvePendingReview(attractionId, placeId) {
+    return enrichmentService.resolveReview(attractionId, placeId);
+  },
+
+  async rejectPendingReview(attractionId, reason) {
+    return enrichmentService.rejectReview(attractionId, reason);
   },
 
   async ensureDestinationExists(destinationId) {

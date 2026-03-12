@@ -1,5 +1,6 @@
 const request = require("supertest");
 const { app } = require("./helpers/app");
+const { googlePlacesClient } = require("../../src/services/google-places");
 const {
   cleanupTestArtifacts,
   closeTestDb,
@@ -25,6 +26,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  jest.restoreAllMocks();
   await cleanupTestArtifacts();
 });
 
@@ -157,6 +159,78 @@ describe("admin web integration", () => {
     expect(pendingResponse.text).toContain('data-page="admin-pending-enrichment"');
     expect(pendingResponse.text).toContain("Run batch enrichment");
     expect(pendingResponse.text).toContain("Apply filters");
+  });
+
+  test("admin users can open the manual review page for a needs_review attraction", async () => {
+    const admin = await createAdminUser("admin-web-review");
+    const agent = request.agent(app);
+    const attraction = await db.Attraction.findOne({
+      where: {
+        isActive: true,
+      },
+      order: [["destinationId", "ASC"], ["name", "ASC"]],
+    });
+
+    expect(attraction).toBeTruthy();
+
+    const originalState = {
+      enrichmentStatus: attraction.enrichmentStatus,
+      enrichmentError: attraction.enrichmentError,
+    };
+
+    await attraction.update({
+      enrichmentStatus: "needs_review",
+      enrichmentError: null,
+    });
+
+    jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([
+      {
+        placeId: "google-place-1",
+        name: attraction.name,
+        formattedAddress: attraction.fullAddress || `${attraction.name}, Indonesia`,
+        location: attraction.latitude
+          ? {
+              latitude: Number(attraction.latitude),
+              longitude: Number(attraction.longitude),
+            }
+          : null,
+        rating: 4.4,
+        userRatingsTotal: 1234,
+        types: ["tourist_attraction"],
+      },
+      {
+        placeId: "google-place-2",
+        name: `${attraction.name} Resort`,
+        formattedAddress: attraction.fullAddress || `${attraction.name}, Indonesia`,
+        location: attraction.latitude
+          ? {
+              latitude: Number(attraction.latitude) + 0.001,
+              longitude: Number(attraction.longitude) + 0.001,
+            }
+          : null,
+        rating: 4.2,
+        userRatingsTotal: 900,
+        types: ["lodging", "tourist_attraction"],
+      },
+    ]);
+
+    await agent
+      .post("/admin/login")
+      .type("form")
+      .send({
+        email: admin.email,
+        password: admin.password,
+      });
+
+    const response = await agent.get(`/admin/enrichment/${attraction.id}/review`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.text).toContain('data-page="admin-pending-review"');
+    expect(response.text).toContain("Approve this match");
+    expect(response.text).toContain("Reject candidates");
+
+    await attraction.update(originalState);
   });
 
   test("POST /admin/logout clears the admin cookie", async () => {

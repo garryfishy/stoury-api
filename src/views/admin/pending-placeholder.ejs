@@ -26,13 +26,16 @@
 
     <section class="panel-card">
       <div class="panel-heading">
-        <h2 class="section-title">Current queue signals</h2>
+        <h2 class="section-title">Global queue signals</h2>
       </div>
       <ul class="stat-list">
         <li>Pending attractions: <strong><%= summary.pendingCount %></strong></li>
         <li>Needs review: <strong><%= summary.needsReviewCount %></strong></li>
         <li>Stale enriched records: <strong><%= summary.staleCount %></strong></li>
       </ul>
+      <p class="section-copy">
+        These counts are global. The queue list below only shows the current filter selection.
+      </p>
     </section>
 
     <section class="panel-card">
@@ -157,14 +160,23 @@
               </p>
 
               <div class="destination-admin-actions">
-                <form
-                  method="post"
-                  action="/admin/enrichment/<%= item.id %>/enrich?page=<%= pagination.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
-                  class="inline-form"
-                  data-admin-form
-                >
-                  <button type="submit" class="button button-primary">Enrich now</button>
-                </form>
+                <% if (item.enrichment.status === "needs_review") { %>
+                  <a
+                    href="/admin/enrichment/<%= item.id %>/review?page=<%= pagination.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+                    class="button button-primary"
+                  >
+                    Review match
+                  </a>
+                <% } else { %>
+                  <form
+                    method="post"
+                    action="/admin/enrichment/<%= item.id %>/enrich?page=<%= pagination.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+                    class="inline-form"
+                    data-admin-form
+                  >
+                    <button type="submit" class="button button-primary">Enrich now</button>
+                  </form>
+                <% } %>
               </div>
             </article>
           <% }) %>
