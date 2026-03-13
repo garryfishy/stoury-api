@@ -15,6 +15,21 @@ const preferenceArraySchema = {
 };
 
 const preferencesPaths = {
+  "/api/preferences": {
+    get: {
+      tags: ["Preferences"],
+      summary: "List all active preference categories",
+      description:
+        "Returns the public active preference-category catalog used to render preference pickers. Response names are localized display labels while slugs remain stable.",
+      responses: {
+        200: successResponse(
+          "Preference categories fetched.",
+          preferenceArraySchema,
+          successExample("Preference categories fetched.", preferences)
+        ),
+      },
+    },
+  },
   "/api/preferences/me": {
     get: {
       tags: ["Preferences"],

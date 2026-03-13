@@ -23,6 +23,7 @@ describe("OpenAPI document", () => {
       ])
     );
     expect(document.paths["/api/auth/register"]).toBeDefined();
+    expect(document.paths["/api/preferences"]).toBeDefined();
     expect(document.paths["/api/dashboard/home"]).toBeDefined();
     expect(document.paths["/api/attractions/{idOrSlug}/photo"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}"]).toBeDefined();
@@ -93,6 +94,10 @@ describe("OpenAPI document", () => {
     expect(document.components.schemas.PreferenceCategory.properties.name.description).toContain(
       "Populer"
     );
+    expect(document.paths["/api/preferences"].get.responses[200].content["application/json"].example.message).toBe(
+      "Preference categories fetched."
+    );
+    expect(document.paths["/api/preferences"].get.security).toBeUndefined();
     expect(
       document.paths["/api/trips"].post.requestBody.content["application/json"].examples
     ).toEqual(

@@ -18,6 +18,36 @@ afterAll(async () => {
 });
 
 describe("preferences integration", () => {
+  test("GET /api/preferences returns the public active preference catalog", async () => {
+    const response = await request(app).get("/api/preferences");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe("Preference categories fetched.");
+    expect(response.body.data).toEqual([
+      expect.objectContaining({
+        id: seedData.preferenceCategories.popular.id,
+        slug: "popular",
+        name: "Populer",
+      }),
+      expect.objectContaining({
+        id: seedData.preferenceCategories.food.id,
+        slug: "food",
+        name: "Makanan",
+      }),
+      expect.objectContaining({
+        id: seedData.preferenceCategories.shopping.id,
+        slug: "shopping",
+        name: "Belanja",
+      }),
+      expect.objectContaining({
+        id: seedData.preferenceCategories.history.id,
+        slug: "history",
+        name: "Sejarah",
+      }),
+    ]);
+  });
+
   test("GET /api/preferences/me returns an empty array for a new user", async () => {
     const auth = await registerAndLogin(request, app, { label: "preferences-empty" });
 

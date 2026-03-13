@@ -4,6 +4,50 @@ process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test-refresh
 const { createPreferencesService } = require("../src/modules/preferences/preferences.service");
 
 describe("preferences service", () => {
+  test("listPreferences returns all active serialized preference categories", async () => {
+    const db = {
+      PreferenceCategory: {
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            name: "Popular",
+            slug: "popular",
+            description: "Popular picks",
+          },
+          {
+            id: "55555555-5555-4555-8555-555555555555",
+            name: "Food",
+            slug: "food",
+            description: "Food hunting",
+          },
+        ]),
+      },
+    };
+    const preferencesService = createPreferencesService({
+      dbProvider: () => db,
+    });
+
+    const result = await preferencesService.listPreferences();
+
+    expect(db.PreferenceCategory.findAll).toHaveBeenCalledWith({
+      where: { isActive: true },
+      order: [["sortOrder", "ASC"], ["name", "ASC"]],
+      transaction: undefined,
+    });
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "44444444-4444-4444-8444-444444444444",
+        slug: "popular",
+        name: "Populer",
+      }),
+      expect.objectContaining({
+        id: "55555555-5555-4555-8555-555555555555",
+        slug: "food",
+        name: "Makanan",
+      }),
+    ]);
+  });
+
   test("getMyPreferences returns serialized preference categories", async () => {
     const db = {
       PreferenceCategory: {

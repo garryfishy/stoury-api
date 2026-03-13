@@ -1,12 +1,20 @@
 const { getDb, getRequiredModel, withTransaction } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
 const {
+  loadActivePreferenceCategories,
   loadPreferenceCategoriesByIds,
   loadUserPreferenceCategories,
   serializePreferenceCategory,
 } = require("./preferences.helpers");
 
 const createPreferencesService = ({ dbProvider = getDb } = {}) => ({
+  async listPreferences() {
+    const db = dbProvider();
+    getRequiredModel(db, "PreferenceCategory");
+    const categories = await loadActivePreferenceCategories(db);
+    return categories.map(serializePreferenceCategory);
+  },
+
   async getMyPreferences(userId) {
     const db = dbProvider();
     getRequiredModel(db, "PreferenceCategory");

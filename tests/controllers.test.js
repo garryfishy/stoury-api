@@ -16,6 +16,7 @@ jest.mock("../src/modules/users/users.service", () => ({
 
 jest.mock("../src/modules/preferences/preferences.service", () => ({
   preferencesService: {
+    listPreferences: jest.fn(),
     getMyPreferences: jest.fn(),
     replaceMyPreferences: jest.fn(),
   },
@@ -87,6 +88,7 @@ const {
 } = require("../src/modules/auth/auth.controller");
 const { getMe, updateMe } = require("../src/modules/users/users.controller");
 const {
+  listAll,
   getMine,
   replaceMine,
 } = require("../src/modules/preferences/preferences.controller");
@@ -233,6 +235,23 @@ describe("controllers", () => {
   });
 
   describe("preferences controller", () => {
+    test("listAll returns the public preference catalog", async () => {
+      const req = {};
+      const res = createMockResponse();
+      const next = createMockNext();
+      const payload = [{ id: "pref-1", slug: "popular" }];
+      preferencesService.listPreferences.mockResolvedValue(payload);
+
+      await listAll(req, res, next);
+
+      expect(preferencesService.listPreferences).toHaveBeenCalledWith();
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Preference categories fetched.",
+        data: payload,
+      });
+    });
+
     test("getMine returns the current user's preferences", async () => {
       const req = { auth: { userId: "user-1" } };
       const res = createMockResponse();

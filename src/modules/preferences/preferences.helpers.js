@@ -34,6 +34,16 @@ const loadPreferenceCategoriesByIds = async (db, categoryIds, transaction) => {
   });
 };
 
+const loadActivePreferenceCategories = async (db, transaction) => {
+  const PreferenceCategory = db.PreferenceCategory;
+
+  return PreferenceCategory.findAll({
+    where: { isActive: true },
+    order: [["sortOrder", "ASC"], ["name", "ASC"]],
+    transaction,
+  });
+};
+
 const loadUserPreferenceCategories = async (db, userId, transaction) => {
   const PreferenceCategory = db.PreferenceCategory;
   const UserPreferenceCategory = db.UserPreferenceCategory;
@@ -61,6 +71,7 @@ const loadUserPreferenceCategories = async (db, userId, transaction) => {
 module.exports = {
   PREFERENCE_DISPLAY_NAMES,
   getPreferenceDisplayName,
+  loadActivePreferenceCategories,
   loadPreferenceCategoriesByIds,
   loadUserPreferenceCategories,
   serializePreferenceCategory,
