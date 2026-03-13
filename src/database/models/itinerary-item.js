@@ -54,6 +54,24 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true
       },
+      estimatedBudgetMin: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+          min: 0
+        }
+      },
+      estimatedBudgetMax: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+          min: 0
+        }
+      },
+      estimatedBudgetNote: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
       source: {
         type: DataTypes.ENUM(...ITINERARY_ITEM_SOURCES),
         allowNull: false,
@@ -64,7 +82,22 @@ module.exports = (sequelize, DataTypes) => {
       sequelize,
       modelName: "ItineraryItem",
       tableName: "itinerary_items",
-      underscored: true
+      underscored: true,
+      validate: {
+        estimatedBudgetRangeConsistency() {
+          if (
+            this.estimatedBudgetMin !== null &&
+            this.estimatedBudgetMin !== undefined &&
+            this.estimatedBudgetMax !== null &&
+            this.estimatedBudgetMax !== undefined &&
+            this.estimatedBudgetMax < this.estimatedBudgetMin
+          ) {
+            throw new Error(
+              "estimatedBudgetMax must be greater than or equal to estimatedBudgetMin."
+            );
+          }
+        }
+      }
     }
   );
 

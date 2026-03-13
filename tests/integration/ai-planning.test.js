@@ -120,6 +120,9 @@ describe("ai planning integration", () => {
             startTime: expect.any(String),
             endTime: expect.any(String),
             orderIndex: itemIndex + 1,
+            estimatedBudgetMin: expect.any(Number),
+            estimatedBudgetMax: expect.any(Number),
+            estimatedBudgetNote: expect.any(String),
             source: "ai_assisted",
             attraction: expect.objectContaining({
               id: expect.any(String),
@@ -136,6 +139,10 @@ describe("ai planning integration", () => {
         );
         expect(item.attraction.enrichment).toHaveProperty("externalSource");
         expect(item.attraction.enrichment).toHaveProperty("externalPlaceId");
+        expect(item.estimatedBudgetMin).toBeGreaterThanOrEqual(0);
+        expect(item.estimatedBudgetMax).toBeGreaterThanOrEqual(
+          item.estimatedBudgetMin
+        );
         expect(item.startTime < item.endTime).toBe(true);
       });
 
@@ -225,6 +232,16 @@ describe("ai planning integration", () => {
         day.items.every((item) => item.source === "ai_assisted")
       )
     ).toBe(true);
+    expect(
+      saveResponse.body.data.days.every((day) =>
+        day.items.every(
+          (item) =>
+            typeof item.estimatedBudgetMin === "number" &&
+            typeof item.estimatedBudgetMax === "number" &&
+            typeof item.estimatedBudgetNote === "string"
+        )
+      )
+    ).toBe(true);
 
     const getResponse = await request(app)
       .get(`/api/trips/${trip.body.data.id}/itinerary`)
@@ -237,6 +254,25 @@ describe("ai planning integration", () => {
         day.items.every((item) => item.source === "ai_assisted")
       )
     ).toBe(true);
+    expect(getResponse.body.data.days).toEqual(
+      expect.arrayContaining(
+        saveResponse.body.data.days.map((day) =>
+          expect.objectContaining({
+            dayNumber: day.dayNumber,
+            items: expect.arrayContaining(
+              day.items.map((item) =>
+                expect.objectContaining({
+                  attractionId: item.attractionId,
+                  estimatedBudgetMin: item.estimatedBudgetMin,
+                  estimatedBudgetMax: item.estimatedBudgetMax,
+                  estimatedBudgetNote: item.estimatedBudgetNote,
+                })
+              )
+            ),
+          })
+        )
+      )
+    );
   });
 
   test("rejects ai generation for manual trips", async () => {

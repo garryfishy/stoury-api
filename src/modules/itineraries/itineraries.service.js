@@ -91,6 +91,9 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
           startTime: item.startTime ?? null,
           endTime: item.endTime ?? null,
           notes: item.notes ?? null,
+          estimatedBudgetMin: item.estimatedBudgetMin ?? null,
+          estimatedBudgetMax: item.estimatedBudgetMax ?? null,
+          estimatedBudgetNote: item.estimatedBudgetNote ?? null,
           source: item.source ?? "manual",
         }))
         .sort((left, right) => left.orderIndex - right.orderIndex);
@@ -369,6 +372,9 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
             startTime: item.startTime,
             endTime: item.endTime,
             notes: item.notes,
+            estimatedBudgetMin: item.estimatedBudgetMin,
+            estimatedBudgetMax: item.estimatedBudgetMax,
+            estimatedBudgetNote: item.estimatedBudgetNote,
             source: item.source,
           }))
         );

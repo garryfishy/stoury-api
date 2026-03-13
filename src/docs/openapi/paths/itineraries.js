@@ -34,13 +34,13 @@ const itinerariesPaths = {
       tags: ["Itineraries"],
       summary: "Save the complete itinerary for a trip",
       description:
-        "Replaces the full itinerary snapshot for the authenticated user's trip. The MVP accepts up to 30 days and 12 items per day; if `date` is supplied for a day it must match the server-derived trip date.",
+        "Replaces the full itinerary snapshot for the authenticated user's trip. The MVP accepts up to 30 days and 12 items per day; if `date` is supplied for a day it must match the server-derived trip date. Each itinerary item may optionally include rough budget estimate guidance, but those values are never exact prices.",
       security: [{ bearerAuth: [] }],
       parameters: [parameterRef("TripIdParam")],
       requestBody: requestBody(
         schemaRef("SaveItineraryRequest"),
         saveItineraryRequest,
-        "Complete itinerary payload. Attraction IDs must belong to the trip destination and cannot repeat within the same trip."
+        "Complete itinerary payload. Attraction IDs must belong to the trip destination and cannot repeat within the same trip. Optional itinerary-item budget estimates are trip-specific rough guidance only."
       ),
       responses: {
         200: successResponse(

@@ -55,6 +55,23 @@ const attractions = [
 ];
 
 describe("ai planning service", () => {
+  const expectBudgetEstimateShape = (item) => {
+    expect(item).toHaveProperty("estimatedBudgetMin");
+    expect(item).toHaveProperty("estimatedBudgetMax");
+    expect(item).toHaveProperty("estimatedBudgetNote");
+
+    if (item.estimatedBudgetMin === null) {
+      expect(item.estimatedBudgetMax).toBeNull();
+      expect(item.estimatedBudgetNote).toBeNull();
+      return;
+    }
+
+    expect(item.estimatedBudgetMin).toEqual(expect.any(Number));
+    expect(item.estimatedBudgetMax).toEqual(expect.any(Number));
+    expect(item.estimatedBudgetMax).toBeGreaterThanOrEqual(item.estimatedBudgetMin);
+    expect(item.estimatedBudgetNote).toEqual(expect.any(String));
+  };
+
   test("generatePreview returns a deterministic preview for ai_assisted trips", async () => {
     const db = {
       Trip: {
@@ -132,6 +149,9 @@ describe("ai planning service", () => {
         }),
       })
     );
+    result.days.forEach((day) => {
+      day.items.forEach(expectBudgetEstimateShape);
+    });
     expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalSource");
     expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalPlaceId");
     expect(result.strategy).toEqual({

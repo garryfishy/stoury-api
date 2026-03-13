@@ -15,7 +15,7 @@ const aiPlanningPaths = {
       tags: ["AI Planning"],
       summary: "Generate an AI itinerary preview for a trip",
       description:
-        "Returns a non-persisted preview for an `ai_assisted` trip using the curated attraction catalog, the trip's snapped preferences, and the same trip-level `budget` field used by normal trip APIs. Budget fit is a rough planning signal only and never a guaranteed spend estimate. This endpoint never saves the itinerary.",
+        "Returns a non-persisted preview for an `ai_assisted` trip using the curated attraction catalog, the trip's snapped preferences, and the same trip-level `budget` field used by normal trip APIs. Budget fit is a rough planning signal only and never a guaranteed spend estimate. Preview items may also include rough per-stop budget estimate fields. This endpoint never saves the itinerary.",
       security: [{ bearerAuth: [] }],
       parameters: [parameterRef("TripIdParam")],
       responses: {

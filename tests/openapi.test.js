@@ -104,6 +104,67 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/trips"].post.requestBody.description).toContain(
       "Both planning modes use the same required trip-level `budget` field"
     );
+    expect(document.paths["/api/trips/{tripId}/itinerary"].put.description).toContain(
+      "rough budget estimate guidance"
+    );
+    expect(
+      document.paths["/api/trips/{tripId}/itinerary"].put.requestBody.description
+    ).toContain("rough guidance only");
+    expect(document.paths["/api/trips/{tripId}/ai-generate"].post.description).toContain(
+      "rough per-stop budget estimate fields"
+    );
+    expect(document.components.schemas.ItineraryItem.required).toEqual(
+      expect.arrayContaining([
+        "estimatedBudgetMin",
+        "estimatedBudgetMax",
+        "estimatedBudgetNote",
+      ])
+    );
+    expect(document.components.schemas.ItineraryItem.properties.estimatedBudgetMin).toEqual(
+      expect.objectContaining({
+        type: "integer",
+        minimum: 0,
+        nullable: true,
+      })
+    );
+    expect(
+      document.components.schemas.ItineraryItem.properties.estimatedBudgetMin.description
+    ).toContain("Rough guidance only");
+    expect(
+      document.components.schemas.SaveItineraryItemRequest.properties.estimatedBudgetMax
+    ).toEqual(
+      expect.objectContaining({
+        type: "integer",
+        minimum: 0,
+        nullable: true,
+      })
+    );
+    expect(
+      document.components.schemas.SaveItineraryItemRequest.properties.estimatedBudgetNote
+        .description
+    ).toContain("guidance only");
+    expect(
+      document.paths["/api/trips/{tripId}/itinerary"].put.requestBody.content[
+        "application/json"
+      ].example.days[0].items[0]
+    ).toEqual(
+      expect.objectContaining({
+        estimatedBudgetMin: 0,
+        estimatedBudgetMax: 25000,
+        estimatedBudgetNote: expect.any(String),
+      })
+    );
+    expect(
+      document.paths["/api/trips/{tripId}/ai-generate"].post.responses[200].content[
+        "application/json"
+      ].example.data.days[0].items[0]
+    ).toEqual(
+      expect.objectContaining({
+        estimatedBudgetMin: 0,
+        estimatedBudgetMax: 25000,
+        estimatedBudgetNote: expect.any(String),
+      })
+    );
     expect(document.components.schemas.CreateTripRequest.properties.budget.description).toContain(
       "both manual and ai_assisted trips"
     );

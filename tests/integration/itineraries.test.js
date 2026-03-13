@@ -108,6 +108,13 @@ describe("itineraries integration", () => {
       })
     );
     const payload = buildPrimaryBaliItineraryPayload(seedData);
+    payload.days[0].items[0] = {
+      ...payload.days[0].items[0],
+      estimatedBudgetMin: 0,
+      estimatedBudgetMax: 50000,
+      estimatedBudgetNote:
+        "Heuristic only: allows for common entry, donation, or parking-style spend.",
+    };
 
     const saveResponse = await request(app)
       .put(`/api/trips/${trip.body.data.id}/itinerary`)
@@ -123,6 +130,10 @@ describe("itineraries integration", () => {
     expect(saveResponse.body.data.days[0].items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          estimatedBudgetMin: 0,
+          estimatedBudgetMax: 50000,
+          estimatedBudgetNote:
+            "Heuristic only: allows for common entry, donation, or parking-style spend.",
           source: "manual",
           attraction: expect.objectContaining({
             name: "Tanah Lot",
@@ -154,6 +165,24 @@ describe("itineraries integration", () => {
     expect(getResponse.status).toBe(200);
     expect(getResponse.body.data.hasItinerary).toBe(true);
     expect(getResponse.body.data.days).toHaveLength(2);
+    expect(getResponse.body.data.days[0].items[0]).toEqual(
+      expect.objectContaining({
+        estimatedBudgetMin: 0,
+        estimatedBudgetMax: 50000,
+        estimatedBudgetNote:
+          "Heuristic only: allows for common entry, donation, or parking-style spend.",
+      })
+    );
+    expect(
+      getResponse.body.data.days.slice(1).every((day) =>
+        day.items.every(
+          (item) =>
+            item.estimatedBudgetMin === null &&
+            item.estimatedBudgetMax === null &&
+            item.estimatedBudgetNote === null
+        )
+      )
+    ).toBe(true);
   });
 
   test("saving a new itinerary replaces the old itinerary contents", async () => {
@@ -460,6 +489,89 @@ describe("itineraries integration", () => {
     );
   });
 
+  test("rejects negative itinerary item budget estimates through validation", async () => {
+    const auth = await registerAndLogin(request, app, { label: "itinerary-negative-budget" });
+    const trip = await createTrip(
+      auth.accessToken,
+      buildManualTripPayload({
+        destinationId: seedData.destinations.bali.id,
+        startDate: "2027-03-25",
+        endDate: "2027-03-25",
+      })
+    );
+
+    const response = await request(app)
+      .put(`/api/trips/${trip.body.data.id}/itinerary`)
+      .set(authHeader(auth.accessToken))
+      .send({
+        days: [
+          {
+            dayNumber: 1,
+            items: [
+              {
+                attractionId: seedData.attractions["tanah-lot"].id,
+                orderIndex: 1,
+                estimatedBudgetMin: -1,
+              },
+            ],
+          },
+        ],
+      });
+
+    expect(response.status).toBe(422);
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "days.0.items.0.estimatedBudgetMin",
+        }),
+      ])
+    );
+  });
+
+  test("rejects itinerary item budget max lower than min through validation", async () => {
+    const auth = await registerAndLogin(request, app, {
+      label: "itinerary-invalid-budget-range",
+    });
+    const trip = await createTrip(
+      auth.accessToken,
+      buildManualTripPayload({
+        destinationId: seedData.destinations.bali.id,
+        startDate: "2027-03-26",
+        endDate: "2027-03-26",
+      })
+    );
+
+    const response = await request(app)
+      .put(`/api/trips/${trip.body.data.id}/itinerary`)
+      .set(authHeader(auth.accessToken))
+      .send({
+        days: [
+          {
+            dayNumber: 1,
+            items: [
+              {
+                attractionId: seedData.attractions["tanah-lot"].id,
+                orderIndex: 1,
+                estimatedBudgetMin: 50000,
+                estimatedBudgetMax: 25000,
+              },
+            ],
+          },
+        ],
+      });
+
+    expect(response.status).toBe(422);
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "days.0.items.0.estimatedBudgetMax",
+          message:
+            "estimatedBudgetMax must be greater than or equal to estimatedBudgetMin.",
+        }),
+      ])
+    );
+  });
+
   test("accepts null item times and keeps source defaults", async () => {
     const auth = await registerAndLogin(request, app, { label: "itinerary-null-times" });
     const trip = await createTrip(
@@ -495,6 +607,9 @@ describe("itineraries integration", () => {
       expect.objectContaining({
         startTime: null,
         endTime: null,
+        estimatedBudgetMin: null,
+        estimatedBudgetMax: null,
+        estimatedBudgetNote: null,
         source: "manual",
       })
     );

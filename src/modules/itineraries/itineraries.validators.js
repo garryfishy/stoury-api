@@ -5,6 +5,17 @@ const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must use HH:MM 24-hour format.");
 
+const nullableBudgetIntegerSchema = z.preprocess(
+  (value) => {
+    if (value === "" || value === undefined || value === null) {
+      return null;
+    }
+
+    return typeof value === "string" ? Number(value) : value;
+  },
+  z.number().int().nonnegative().nullable()
+);
+
 const itineraryItemInputSchema = z
   .object({
     attractionId: uuidSchema,
@@ -12,6 +23,9 @@ const itineraryItemInputSchema = z
     startTime: timeSchema.nullable().optional(),
     endTime: timeSchema.nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
+    estimatedBudgetMin: nullableBudgetIntegerSchema.optional(),
+    estimatedBudgetMax: nullableBudgetIntegerSchema.optional(),
+    estimatedBudgetNote: z.string().trim().max(500).nullable().optional(),
     source: z.enum(["manual", "ai_assisted"]).optional(),
   })
   .superRefine((value, context) => {
@@ -24,6 +38,21 @@ const itineraryItemInputSchema = z
         code: "custom",
         message: "startTime must be before endTime.",
         path: ["startTime"],
+      });
+    }
+
+    if (
+      value.estimatedBudgetMin !== null &&
+      value.estimatedBudgetMin !== undefined &&
+      value.estimatedBudgetMax !== null &&
+      value.estimatedBudgetMax !== undefined &&
+      value.estimatedBudgetMax < value.estimatedBudgetMin
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "estimatedBudgetMax must be greater than or equal to estimatedBudgetMin.",
+        path: ["estimatedBudgetMax"],
       });
     }
   });
@@ -74,6 +103,9 @@ const itineraryItemResponseSchema = z.object({
   endTime: timeSchema.nullable(),
   orderIndex: z.number().int().positive(),
   notes: z.string().nullable(),
+  estimatedBudgetMin: z.number().int().nonnegative().nullable(),
+  estimatedBudgetMax: z.number().int().nonnegative().nullable(),
+  estimatedBudgetNote: z.string().nullable(),
   source: z.enum(["manual", "ai_assisted"]),
   attraction: attractionSummaryResponseSchema.nullable(),
 });

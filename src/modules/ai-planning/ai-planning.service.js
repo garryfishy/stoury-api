@@ -17,6 +17,9 @@ const {
   serializeAttractionSummary,
 } = require("../itineraries/itineraries.helpers");
 const {
+  estimateItineraryItemBudget,
+} = require("../itineraries/itinerary-item-budget.helpers");
+const {
   buildPlanningStrategy,
   buildPreviewPayload,
   getPreferredAttractionCategorySlugs,
@@ -272,6 +275,11 @@ const createAiPlanningService = ({
         }
 
         const [selectedCandidate] = remainingCandidates.splice(selectedIndex, 1);
+        const budgetEstimate = estimateItineraryItemBudget({
+          attraction: selectedCandidate.attraction,
+          categories: selectedCandidate.categories,
+          durationMinutes: selectedCandidate.durationMinutes,
+        });
 
         items.push({
           attractionId: selectedCandidate.attractionId,
@@ -284,6 +292,9 @@ const createAiPlanningService = ({
           endTime: minutesToTimeString(selectedWindow.endMinutes),
           orderIndex: items.length + 1,
           notes: null,
+          estimatedBudgetMin: budgetEstimate.estimatedBudgetMin,
+          estimatedBudgetMax: budgetEstimate.estimatedBudgetMax,
+          estimatedBudgetNote: budgetEstimate.estimatedBudgetNote,
           source: "ai_assisted",
           attraction: serializeAttractionSummary(
             selectedCandidate.attraction,

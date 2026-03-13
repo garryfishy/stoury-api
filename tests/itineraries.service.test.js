@@ -91,6 +91,9 @@ describe("itineraries service", () => {
       startTime: "09:00",
       endTime: "11:00",
       notes: null,
+      estimatedBudgetMin: null,
+      estimatedBudgetMax: null,
+      estimatedBudgetNote: null,
       source: "manual",
     };
     const db = {
@@ -169,6 +172,9 @@ describe("itineraries service", () => {
           startTime: "09:00",
           endTime: "11:00",
           notes: null,
+          estimatedBudgetMin: null,
+          estimatedBudgetMax: null,
+          estimatedBudgetNote: null,
           source: "manual",
         },
       ],
@@ -197,6 +203,9 @@ describe("itineraries service", () => {
               endTime: "11:00",
               orderIndex: 1,
               notes: null,
+              estimatedBudgetMin: null,
+              estimatedBudgetMax: null,
+              estimatedBudgetNote: null,
               source: "manual",
               attraction: {
                 id: attraction.id,
@@ -281,5 +290,115 @@ describe("itineraries service", () => {
       message: "The same attraction cannot appear twice in a trip itinerary.",
       statusCode: 422,
     });
+  });
+
+  test("saveTripItinerary preserves budget estimate fields when provided", async () => {
+    const itinerary = {
+      id: "21212121-2121-4212-8212-212121212121",
+      tripId: trip.id,
+    };
+    const createdDay = {
+      id: "31313131-3131-4313-8313-313131313131",
+      itineraryId: itinerary.id,
+      tripId: trip.id,
+      dayNumber: 1,
+      tripDate: "2026-04-10",
+      notes: null,
+    };
+    const createdItem = {
+      id: "41414141-4141-4414-8414-414141414141",
+      itineraryDayId: createdDay.id,
+      tripId: trip.id,
+      attractionId: attraction.id,
+      orderIndex: 1,
+      startTime: "09:00",
+      endTime: "11:00",
+      notes: null,
+      estimatedBudgetMin: 0,
+      estimatedBudgetMax: 25000,
+      estimatedBudgetNote: "Parking and optional snacks",
+      source: "ai_assisted",
+    };
+    const db = {
+      Trip: {
+        findOne: jest.fn().mockResolvedValue({
+          ...trip,
+          planningMode: "ai_assisted",
+        }),
+      },
+      Attraction: {
+        findAll: jest.fn().mockResolvedValue([attraction]),
+      },
+      AttractionCategoryMapping: {
+        findAll: jest.fn().mockResolvedValue([]),
+      },
+      AttractionCategory: {
+        findAll: jest.fn().mockResolvedValue([]),
+      },
+      Itinerary: {
+        findOne: jest
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(itinerary),
+        create: jest.fn().mockResolvedValue(itinerary),
+      },
+      ItineraryDay: {
+        findAll: jest
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([createdDay]),
+        destroy: jest.fn().mockResolvedValue(0),
+        bulkCreate: jest.fn().mockResolvedValue([createdDay]),
+      },
+      ItineraryItem: {
+        destroy: jest.fn().mockResolvedValue(0),
+        bulkCreate: jest.fn().mockResolvedValue([createdItem]),
+        findAll: jest.fn().mockResolvedValue([createdItem]),
+      },
+    };
+    const itinerariesService = createItinerariesService({
+      dbProvider: () => db,
+    });
+
+    const result = await itinerariesService.saveTripItinerary(trip.userId, trip.id, {
+      days: [
+        {
+          dayNumber: 1,
+          items: [
+            {
+              attractionId: attraction.id,
+              startTime: "09:00",
+              endTime: "11:00",
+              estimatedBudgetMin: 0,
+              estimatedBudgetMax: 25000,
+              estimatedBudgetNote: "Parking and optional snacks",
+              source: "ai_assisted",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(db.ItineraryItem.bulkCreate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          itineraryDayId: createdDay.id,
+          tripId: trip.id,
+          attractionId: attraction.id,
+          estimatedBudgetMin: 0,
+          estimatedBudgetMax: 25000,
+          estimatedBudgetNote: "Parking and optional snacks",
+          source: "ai_assisted",
+        }),
+      ],
+      { transaction: null, returning: true }
+    );
+    expect(result.days[0].items[0]).toEqual(
+      expect.objectContaining({
+        estimatedBudgetMin: 0,
+        estimatedBudgetMax: 25000,
+        estimatedBudgetNote: "Parking and optional snacks",
+      })
+    );
   });
 });

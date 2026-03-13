@@ -214,6 +214,9 @@ const buildItineraryItemPayload = (
     endTime: normalizeStoredTime(readRecordValue(itemRecord, ["endTime"], null)),
     orderIndex: readRecordValue(itemRecord, ["orderIndex"]),
     notes: readRecordValue(itemRecord, ["notes"], null),
+    estimatedBudgetMin: readRecordValue(itemRecord, ["estimatedBudgetMin"], null),
+    estimatedBudgetMax: readRecordValue(itemRecord, ["estimatedBudgetMax"], null),
+    estimatedBudgetNote: readRecordValue(itemRecord, ["estimatedBudgetNote"], null),
     source: readRecordValue(itemRecord, ["source"], "manual"),
     attraction: attraction
       ? serializeAttractionSummary(

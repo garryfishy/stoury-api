@@ -218,7 +218,15 @@ describe("aiPlanningService", () => {
 
     expect(new Set(attractionIds).size).toBe(attractionIds.length);
     expect(preview.days[0].items[0].attractionId).toBe(TEMPLE_ATTRACTION_ID);
-    expect(preview.days[0].items[0].source).toBe("ai_assisted");
+    expect(preview.days[0].items[0]).toEqual(
+      expect.objectContaining({
+        source: "ai_assisted",
+        estimatedBudgetMin: 0,
+        estimatedBudgetMax: 60000,
+        estimatedBudgetNote:
+          "Heuristic only: allows for common entry, donation, or parking-style spend.",
+      })
+    );
     expect(preview.days[0].isPartial).toBe(false);
   });
 

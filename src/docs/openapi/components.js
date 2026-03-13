@@ -1238,6 +1238,8 @@ const components = {
     },
     ItineraryItem: {
       type: "object",
+      description:
+        "Saved or previewed trip-owned itinerary item. Any budget estimate fields are rough AI guidance for this stop only and are never exact prices.",
       required: [
         "attractionId",
         "attractionName",
@@ -1245,6 +1247,9 @@ const components = {
         "endTime",
         "orderIndex",
         "notes",
+        "estimatedBudgetMin",
+        "estimatedBudgetMax",
+        "estimatedBudgetNote",
         "source",
         "attraction",
       ],
@@ -1277,6 +1282,26 @@ const components = {
         notes: {
           type: "string",
           nullable: true,
+        },
+        estimatedBudgetMin: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional AI-estimated minimum spend guidance for this itinerary item in rupiah. Rough guidance only, not an exact price.",
+        },
+        estimatedBudgetMax: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional AI-estimated maximum spend guidance for this itinerary item in rupiah. Rough guidance only, not an exact price.",
+        },
+        estimatedBudgetNote: {
+          type: "string",
+          nullable: true,
+          description:
+            "Optional explanation for the itinerary-item estimate. This is heuristic guidance only.",
         },
         source: {
           type: "string",
@@ -1371,6 +1396,8 @@ const components = {
     },
     SaveItineraryItemRequest: {
       type: "object",
+      description:
+        "Trip-owned itinerary item input. Budget estimate fields are optional rough guidance values per item and are never exact prices.",
       required: ["attractionId"],
       properties: {
         attractionId: {
@@ -1702,6 +1729,8 @@ const components = {
     },
     ItineraryItem: {
       type: "object",
+      description:
+        "Saved or previewed trip-owned itinerary item. Any budget estimate fields are rough AI guidance for this stop only and are never exact prices.",
       required: [
         "attractionId",
         "attractionName",
@@ -1709,6 +1738,9 @@ const components = {
         "endTime",
         "orderIndex",
         "notes",
+        "estimatedBudgetMin",
+        "estimatedBudgetMax",
+        "estimatedBudgetNote",
         "source",
         "attraction",
       ],
@@ -1741,6 +1773,26 @@ const components = {
         notes: {
           type: "string",
           nullable: true,
+        },
+        estimatedBudgetMin: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional AI-estimated minimum spend guidance for this itinerary item in rupiah. Rough guidance only, not an exact price.",
+        },
+        estimatedBudgetMax: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional AI-estimated maximum spend guidance for this itinerary item in rupiah. Rough guidance only, not an exact price.",
+        },
+        estimatedBudgetNote: {
+          type: "string",
+          nullable: true,
+          description:
+            "Optional explanation for the itinerary-item estimate. This is heuristic guidance only.",
         },
         source: {
           type: "string",
@@ -1836,6 +1888,8 @@ const components = {
     },
     SaveItineraryItemRequest: {
       type: "object",
+      description:
+        "Trip-owned itinerary item input. Budget estimate fields are optional rough guidance values per item and are never exact prices.",
       required: ["attractionId"],
       properties: {
         attractionId: {
@@ -1860,6 +1914,27 @@ const components = {
           type: "string",
           nullable: true,
           maxLength: 1000,
+        },
+        estimatedBudgetMin: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional rough minimum spend guidance for this itinerary item in rupiah. Manual items may leave this empty.",
+        },
+        estimatedBudgetMax: {
+          type: "integer",
+          minimum: 0,
+          nullable: true,
+          description:
+            "Optional rough maximum spend guidance for this itinerary item in rupiah. When supplied with `estimatedBudgetMin`, it must be greater than or equal to that value.",
+        },
+        estimatedBudgetNote: {
+          type: "string",
+          nullable: true,
+          maxLength: 500,
+          description:
+            "Optional heuristic note for the itinerary-item estimate. This is guidance only, not a guaranteed price.",
         },
         source: {
           type: "string",
