@@ -418,6 +418,22 @@ const components = {
         },
       },
     },
+    PrimaryPreferenceBucket: {
+      type: "object",
+      required: ["slug", "name"],
+      properties: {
+        slug: {
+          type: "string",
+          enum: ["popular", "food", "shopping", "history"],
+        },
+        name: {
+          type: "string",
+          enum: ["Populer", "Makanan", "Belanja", "Sejarah"],
+        },
+      },
+      description:
+        "Normalized product-facing preference bucket derived from detailed attraction taxonomy.",
+    },
     Attraction: {
       type: "object",
       required: [
@@ -436,6 +452,7 @@ const components = {
         "mainImageUrl",
         "metadata",
         "enrichment",
+        "primaryPreference",
       ],
       properties: {
         id: {
@@ -528,6 +545,9 @@ const components = {
               nullable: true,
             },
           },
+        },
+        primaryPreference: {
+          $ref: "#/components/schemas/PrimaryPreferenceBucket",
         },
         destination: {
           $ref: "#/components/schemas/Destination",
@@ -1161,10 +1181,12 @@ const components = {
         "latitude",
         "longitude",
         "estimatedDurationMinutes",
+        "openingHours",
         "rating",
         "thumbnailImageUrl",
         "mainImageUrl",
         "enrichment",
+        "primaryPreference",
         "categories",
       ],
       properties: {
@@ -1200,6 +1222,11 @@ const components = {
           type: "integer",
           nullable: true,
         },
+        openingHours: {
+          type: "object",
+          nullable: true,
+          additionalProperties: true,
+        },
         rating: {
           oneOf: [{ type: "number" }, { type: "string" }],
           nullable: true,
@@ -1227,6 +1254,9 @@ const components = {
               nullable: true,
             },
           },
+        },
+        primaryPreference: {
+          $ref: "#/components/schemas/PrimaryPreferenceBucket",
         },
         categories: {
           type: "array",
@@ -1654,10 +1684,12 @@ const components = {
         "latitude",
         "longitude",
         "estimatedDurationMinutes",
+        "openingHours",
         "rating",
         "thumbnailImageUrl",
         "mainImageUrl",
         "enrichment",
+        "primaryPreference",
         "categories",
       ],
       properties: {
@@ -1691,6 +1723,11 @@ const components = {
           type: "integer",
           nullable: true,
         },
+        openingHours: {
+          type: "object",
+          nullable: true,
+          additionalProperties: true,
+        },
         rating: {
           oneOf: [{ type: "number" }, { type: "string" }],
           nullable: true,
@@ -1718,6 +1755,9 @@ const components = {
               nullable: true,
             },
           },
+        },
+        primaryPreference: {
+          $ref: "#/components/schemas/PrimaryPreferenceBucket",
         },
         categories: {
           type: "array",

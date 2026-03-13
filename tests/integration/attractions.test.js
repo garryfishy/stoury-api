@@ -56,9 +56,14 @@ describe("attractions integration", () => {
         latitude: expect.anything(),
         longitude: expect.anything(),
         estimatedDurationMinutes: expect.any(Number),
+        openingHours: expect.any(Object),
         rating: expect.anything(),
         thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
         mainImageUrl: expect.stringContaining("/api/attractions/"),
+        primaryPreference: expect.objectContaining({
+          slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
+          name: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
+        }),
         categories: expect.arrayContaining([
           expect.objectContaining({
             id: expect.any(String),
@@ -346,8 +351,13 @@ describe("attractions integration", () => {
         slug: "tanah-lot",
         thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
         mainImageUrl: expect.stringContaining("/api/attractions/"),
+        openingHours: expect.any(Object),
         destination: expect.objectContaining({
           slug: "bali",
+        }),
+        primaryPreference: expect.objectContaining({
+          slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
+          name: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
         }),
         categories: expect.arrayContaining([
           expect.objectContaining({ slug: "beach" }),

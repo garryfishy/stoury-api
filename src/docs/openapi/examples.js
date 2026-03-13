@@ -84,6 +84,10 @@ const attraction = {
     externalReviewCount: null,
     externalLastSyncedAt: null,
   },
+  primaryPreference: {
+    slug: "popular",
+    name: "Populer",
+  },
   destination,
   categories: [attractionCategory],
 };
@@ -142,6 +146,7 @@ const itineraryAttractionSummary = {
   latitude: attraction.latitude,
   longitude: attraction.longitude,
   estimatedDurationMinutes: attraction.estimatedDurationMinutes,
+  openingHours: attraction.openingHours,
   rating: attraction.rating,
   thumbnailImageUrl: attraction.thumbnailImageUrl,
   mainImageUrl: attraction.mainImageUrl,
@@ -149,6 +154,7 @@ const itineraryAttractionSummary = {
     externalSource: attraction.enrichment.externalSource,
     externalPlaceId: attraction.enrichment.externalPlaceId,
   },
+  primaryPreference: attraction.primaryPreference,
   categories: attraction.categories,
 };
 
@@ -161,12 +167,20 @@ const secondItineraryAttractionSummary = {
   latitude: "1.0202000",
   longitude: "103.9859000",
   estimatedDurationMinutes: 90,
+  openingHours: {
+    monday: ["09:00-18:00"],
+    tuesday: ["09:00-18:00"],
+  },
   rating: "4.6",
   thumbnailImageUrl: "https://images.example.com/attractions/barelang-thumb.jpg",
   mainImageUrl: "https://images.example.com/attractions/barelang-main.jpg",
   enrichment: {
     externalSource: null,
     externalPlaceId: null,
+  },
+  primaryPreference: {
+    slug: "history",
+    name: "Sejarah",
   },
   categories: [attractionCategory],
 };
@@ -180,12 +194,20 @@ const thirdItineraryAttractionSummary = {
   latitude: "1.1565000",
   longitude: "104.0443000",
   estimatedDurationMinutes: 120,
+  openingHours: {
+    monday: ["10:00-20:00"],
+    tuesday: ["10:00-20:00"],
+  },
   rating: "4.4",
   thumbnailImageUrl: "https://images.example.com/attractions/ocarina-thumb.jpg",
   mainImageUrl: "https://images.example.com/attractions/ocarina-main.jpg",
   enrichment: {
     externalSource: null,
     externalPlaceId: null,
+  },
+  primaryPreference: {
+    slug: "popular",
+    name: "Populer",
   },
   categories: [attractionCategory],
 };

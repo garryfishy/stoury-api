@@ -6,6 +6,7 @@ const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
 const {
   ATTRACTION_PHOTO_VARIANTS,
+  getProductPreferenceBucketKey,
   resolveAttractionImageUrl,
 } = require("../attractions/attractions.helpers");
 const { getPreferenceDisplayName } = require("../preferences/preferences.helpers");
@@ -29,18 +30,10 @@ const getAttractionCategorySlugs = (categories = []) =>
     .filter(Boolean);
 
 const getDashboardBadgeKey = (categories = []) => {
-  const categorySlugs = new Set(getAttractionCategorySlugs(categories));
+  const bucket = getProductPreferenceBucketKey(categories);
 
-  if (categorySlugs.has("culinary")) {
-    return DASHBOARD_BADGES.FOOD;
-  }
-
-  if (categorySlugs.has("shopping")) {
-    return DASHBOARD_BADGES.SHOPPING;
-  }
-
-  if (categorySlugs.has("heritage") || categorySlugs.has("temple")) {
-    return DASHBOARD_BADGES.HISTORY;
+  if (Object.values(DASHBOARD_BADGES).includes(bucket)) {
+    return bucket;
   }
 
   return DASHBOARD_BADGES.POPULAR;

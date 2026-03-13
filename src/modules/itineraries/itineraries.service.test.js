@@ -124,6 +124,11 @@ describe("itinerariesService", () => {
     expect(fetched.days[0].items[0].attraction.mainImageUrl).toBe(
       `http://localhost:3000/api/attractions/${MUSEUM_ID}/photo?variant=main`
     );
+    expect(fetched.days[0].items[0].attraction.openingHours).toEqual(alwaysOpen);
+    expect(fetched.days[0].items[0].attraction.primaryPreference).toEqual({
+      slug: "popular",
+      name: "Populer",
+    });
   });
 
   test("rejects duplicate attractions anywhere in the trip payload", async () => {

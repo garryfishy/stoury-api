@@ -14,6 +14,9 @@ const {
 } = require("./itineraries.helpers");
 const { itineraryResponseSchema } = require("./itineraries.validators");
 
+const normalizeUuidValue = (value) =>
+  typeof value === "string" ? value.trim().toLowerCase() : value;
+
 const createItinerariesService = ({ dbProvider = getDb } = {}) => {
   const getItineraryModels = (db) => ({
     Attraction: getRequiredModel(db, "Attraction"),
@@ -86,7 +89,7 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
 
       const sortedItems = day.items
         .map((item, itemIndex) => ({
-          attractionId: item.attractionId,
+          attractionId: normalizeUuidValue(item.attractionId),
           orderIndex: item.orderIndex ?? itemIndex + 1,
           startTime: item.startTime ?? null,
           endTime: item.endTime ?? null,
@@ -190,7 +193,7 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
     return Attraction.findAll({
       where: {
         id: {
-          [Op.in]: attractionIds,
+          [Op.in]: attractionIds.map(normalizeUuidValue),
         },
       },
       transaction,
@@ -241,11 +244,18 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
       : [];
 
     const attractionIds = [
-      ...new Set(items.map((item) => readRecordValue(item, ["attractionId"])).filter(Boolean)),
+      ...new Set(
+        items
+          .map((item) => normalizeUuidValue(readRecordValue(item, ["attractionId"])))
+          .filter(Boolean)
+      ),
     ];
     const attractions = await loadAttractionsByIds(Attraction, attractionIds, transaction);
     const attractionsById = new Map(
-      attractions.map((attraction) => [readRecordValue(attraction, ["id"]), attraction])
+      attractions.map((attraction) => [
+        normalizeUuidValue(readRecordValue(attraction, ["id"])),
+        attraction,
+      ])
     );
     const categoriesByAttractionId = await loadAttractionCategoriesByAttractionIds(
       db,
@@ -305,7 +315,10 @@ const createItinerariesService = ({ dbProvider = getDb } = {}) => {
           transaction
         );
         const attractionsById = new Map(
-          attractions.map((attraction) => [readRecordValue(attraction, ["id"]), attraction])
+          attractions.map((attraction) => [
+            normalizeUuidValue(readRecordValue(attraction, ["id"])),
+            attraction,
+          ])
         );
 
         assertAttractionsValidForTrip(trip, attractionsById, normalizedDays);

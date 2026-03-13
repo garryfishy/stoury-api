@@ -49,40 +49,6 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
     return destination;
   };
 
-  const assertNoOverlap = async (Trip, { tripId, userId, destinationId, startDate, endDate }, transaction) => {
-    const where = {
-      [Op.and]: [
-        {
-          userId,
-        },
-        {
-          destinationId,
-        },
-        {
-          startDate: { [Op.lte]: endDate },
-        },
-        {
-          endDate: { [Op.gte]: startDate },
-        },
-      ],
-    };
-
-    if (tripId) {
-      where[Op.and].push({
-        [Op.or]: [{ id: { [Op.ne]: tripId } }],
-      });
-    }
-
-    const overlap = await Trip.findOne({ where, transaction });
-
-    if (overlap) {
-      throw new AppError(
-        "You already have an overlapping trip for this destination in the selected date range.",
-        409
-      );
-    }
-  };
-
   const assertValidDateRange = (startDate, endDate) => {
     if (startDate && endDate && String(startDate) > String(endDate)) {
       throw new AppError("startDate must be on or before endDate.", 422);
@@ -223,17 +189,6 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
         );
         assertValidDateRange(payload.startDate, payload.endDate);
 
-        await assertNoOverlap(
-          Trip,
-          {
-            userId,
-            destinationId: payload.destinationId,
-            startDate: payload.startDate,
-            endDate: payload.endDate,
-          },
-          transaction
-        );
-
         const trip = await Trip.create(
           {
             userId,
@@ -343,18 +298,6 @@ const createTripsService = ({ dbProvider = getDb } = {}) => {
           ? await assertDestinationSelectable(Destination, nextDestinationId, transaction)
           : await loadDestination(Destination, nextDestinationId, transaction);
         assertValidDateRange(nextStartDate, nextEndDate);
-
-        await assertNoOverlap(
-          Trip,
-          {
-            tripId,
-            userId,
-            destinationId: nextDestinationId,
-            startDate: nextStartDate,
-            endDate: nextEndDate,
-          },
-          transaction
-        );
 
         if (payload.preferenceSource) {
           const categories = await resolvePreferenceSnapshot(

@@ -3,6 +3,7 @@ const {
   ATTRACTION_PHOTO_VARIANTS,
   resolveAttractionImageUrl,
   serializeAttractionCategory,
+  serializePrimaryPreferenceBucket,
 } = require("../attractions/attractions.helpers");
 
 const DEFAULT_DAY_START_MINUTES = 9 * 60;
@@ -177,6 +178,7 @@ const serializeAttractionSummary = (record, categories = []) => ({
     ["estimatedDurationMinutes"],
     null
   ),
+  openingHours: readRecordValue(record, ["openingHours"], null),
   rating: readRecordValue(record, ["rating"], null),
   thumbnailImageUrl: resolveAttractionImageUrl(
     record,
@@ -187,6 +189,7 @@ const serializeAttractionSummary = (record, categories = []) => ({
     externalSource: readRecordValue(record, ["externalSource"], null),
     externalPlaceId: readRecordValue(record, ["externalPlaceId"], null),
   },
+  primaryPreference: serializePrimaryPreferenceBucket(categories),
   categories: categories.map(serializeAttractionCategory),
 });
 
@@ -204,7 +207,9 @@ const buildItineraryItemPayload = (
   categoriesByAttractionId
 ) => {
   const attractionId = readRecordValue(itemRecord, ["attractionId"]);
-  const attraction = attractionsById.get(attractionId);
+  const attraction = attractionsById.get(
+    typeof attractionId === "string" ? attractionId.toLowerCase() : attractionId
+  );
 
   return {
     id: readRecordValue(itemRecord, ["id"]),

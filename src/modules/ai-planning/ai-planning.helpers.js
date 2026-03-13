@@ -1,18 +1,9 @@
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializePreferenceCategory } = require("../preferences/preferences.helpers");
-
-const PREFERENCE_TO_ATTRACTION_CATEGORY_SLUGS = {
-  popular: [],
-  history: ["heritage", "temple"],
-  food: ["culinary"],
-  shopping: ["shopping"],
-  nature: ["beach", "nature-park", "viewpoint"],
-  culture: ["heritage", "temple"],
-  relaxation: ["beach", "nature-park", "viewpoint"],
-  adventure: ["adventure", "nature-park", "viewpoint"],
-  family: ["family-fun"],
-  nightlife: ["nightlife", "viewpoint"],
-};
+const {
+  getAttractionCategorySlugsForPreference,
+  isDestinationWidePreferenceSlug,
+} = require("../preferences/preference-buckets.helpers");
 
 const getNumericValue = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -24,7 +15,7 @@ const getPreferredAttractionCategorySlugs = (preferences) => {
 
   preferences.forEach((preference) => {
     const preferenceSlug = readRecordValue(preference, ["slug"], "");
-    const mappedSlugs = PREFERENCE_TO_ATTRACTION_CATEGORY_SLUGS[preferenceSlug] || [];
+    const mappedSlugs = getAttractionCategorySlugsForPreference(preferenceSlug);
 
     mappedSlugs.forEach((slug) => {
       categorySlugs.add(slug);
@@ -136,7 +127,8 @@ const isDestinationWidePreferenceSet = (preferences) => {
   }
 
   return preferences.every(
-    (preference) => readRecordValue(preference, ["slug"], "") === "popular"
+    (preference) =>
+      isDestinationWidePreferenceSlug(readRecordValue(preference, ["slug"], ""))
   );
 };
 

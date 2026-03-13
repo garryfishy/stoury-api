@@ -74,6 +74,11 @@ const itineraryCategoryResponseSchema = z.object({
   slug: z.string(),
 });
 
+const primaryPreferenceBucketSchema = z.object({
+  slug: z.enum(["popular", "food", "shopping", "history"]),
+  name: z.enum(["Populer", "Makanan", "Belanja", "Sejarah"]),
+});
+
 const numericLikeSchema = z.union([z.number(), z.string()]);
 
 const attractionSummaryResponseSchema = z.object({
@@ -85,6 +90,7 @@ const attractionSummaryResponseSchema = z.object({
   latitude: numericLikeSchema.nullable(),
   longitude: numericLikeSchema.nullable(),
   estimatedDurationMinutes: z.number().int().positive().nullable(),
+  openingHours: z.record(z.string(), z.any()).nullable(),
   rating: numericLikeSchema.nullable(),
   thumbnailImageUrl: z.string().nullable(),
   mainImageUrl: z.string().nullable(),
@@ -92,6 +98,7 @@ const attractionSummaryResponseSchema = z.object({
     externalSource: z.string().nullable(),
     externalPlaceId: z.string().nullable(),
   }),
+  primaryPreference: primaryPreferenceBucketSchema,
   categories: z.array(itineraryCategoryResponseSchema),
 });
 

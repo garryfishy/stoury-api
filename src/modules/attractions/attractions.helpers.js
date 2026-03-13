@@ -2,6 +2,10 @@ const { Op } = require("sequelize");
 const env = require("../../config/env");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
+const {
+  getPreferenceBucketForCategorySlugs,
+} = require("../preferences/preference-buckets.helpers");
+const { getPreferenceDisplayName } = require("../preferences/preferences.helpers");
 
 const ATTRACTION_PHOTO_VARIANTS = Object.freeze({
   thumbnail: "thumbnail",
@@ -44,7 +48,26 @@ const serializeAttractionCategory = (record) => ({
   slug: readRecordValue(record, ["slug"], ""),
 });
 
+const getProductPreferenceBucketKey = (categories = []) => {
+  const categorySlugs = (
+    categories
+      .map((category) => readRecordValue(category, ["slug"], ""))
+      .filter(Boolean)
+  );
+  return getPreferenceBucketForCategorySlugs(categorySlugs);
+};
+
+const serializePrimaryPreferenceBucket = (categories = []) => {
+  const slug = getProductPreferenceBucketKey(categories);
+
+  return {
+    slug,
+    name: getPreferenceDisplayName(slug, slug),
+  };
+};
+
 const serializeAttraction = (record, options = {}) => {
+  const categories = options.categories || [];
   const attraction = {
     id: readRecordValue(record, ["id"]),
     destinationId: readRecordValue(record, ["destinationId"]),
@@ -70,6 +93,7 @@ const serializeAttraction = (record, options = {}) => {
       externalReviewCount: readRecordValue(record, ["externalReviewCount"], null),
       externalLastSyncedAt: readRecordValue(record, ["externalLastSyncedAt"], null),
     },
+    primaryPreference: serializePrimaryPreferenceBucket(categories),
   };
 
   if (options.destination) {
@@ -77,7 +101,7 @@ const serializeAttraction = (record, options = {}) => {
   }
 
   if (options.categories) {
-    attraction.categories = options.categories.map(serializeAttractionCategory);
+    attraction.categories = categories.map(serializeAttractionCategory);
   }
 
   return attraction;
@@ -130,8 +154,10 @@ const loadAttractionCategoriesByAttractionIds = async (db, attractionIds) => {
 module.exports = {
   ATTRACTION_PHOTO_VARIANTS,
   buildAttractionPhotoUrl,
+  getProductPreferenceBucketKey,
   loadAttractionCategoriesByAttractionIds,
   resolveAttractionImageUrl,
   serializeAttraction,
   serializeAttractionCategory,
+  serializePrimaryPreferenceBucket,
 };

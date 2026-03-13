@@ -130,9 +130,14 @@ describe("ai planning integration", () => {
               latitude: expect.any(String),
               longitude: expect.any(String),
               fullAddress: expect.any(String),
+              openingHours: expect.any(Object),
               thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
               mainImageUrl: expect.stringContaining("/api/attractions/"),
               enrichment: expect.any(Object),
+              primaryPreference: expect.objectContaining({
+                slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
+                name: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
+              }),
               categories: expect.any(Array),
             }),
           })
@@ -223,7 +228,13 @@ describe("ai planning integration", () => {
       .put(`/api/trips/${trip.body.data.id}/itinerary`)
       .set(authHeader(auth.accessToken))
       .send({
-        days: previewResponse.body.data.days,
+        days: previewResponse.body.data.days.map((day) => ({
+          ...day,
+          items: day.items.map((item) => ({
+            ...item,
+            attractionId: item.attractionId.toUpperCase(),
+          })),
+        })),
       });
 
     expect(saveResponse.status).toBe(200);

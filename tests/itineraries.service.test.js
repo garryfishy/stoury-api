@@ -216,6 +216,10 @@ describe("itineraries service", () => {
                 latitude: "1.1870000",
                 longitude: "104.1190000",
                 estimatedDurationMinutes: 120,
+                openingHours: {
+                  friday: [{ open: "08:00", close: "18:00" }],
+                  saturday: [{ open: "08:00", close: "18:00" }],
+                },
                 rating: "4.5",
                 thumbnailImageUrl:
                   "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
@@ -224,6 +228,10 @@ describe("itineraries service", () => {
                 enrichment: {
                   externalSource: "google_places",
                   externalPlaceId: "ChIJexamplePantaiNongsa",
+                },
+                primaryPreference: {
+                  slug: "popular",
+                  name: "Populer",
                 },
                 categories: [],
               },

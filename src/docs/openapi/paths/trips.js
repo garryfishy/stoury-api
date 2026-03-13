@@ -33,6 +33,8 @@ const tripsPaths = {
     post: {
       tags: ["Trips"],
       summary: "Create a manual or AI-assisted trip and snapshot preferences",
+      description:
+        "Creates a trip snapshot for the authenticated user. Overlapping trips are allowed, including for the same destination, as long as the payload is otherwise valid and the destination is active.",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -78,12 +80,6 @@ const tripsPaths = {
           successExample("Trip created.", trip)
         ),
         401: responseRef("Unauthorized"),
-        409: errorResponse(
-          "Trip overlaps an existing trip for the same destination.",
-          errorExample(
-            "You already have an overlapping trip for this destination in the selected date range."
-          )
-        ),
         422: errorResponse(
           "Invalid, inactive, or unknown destination or preference IDs.",
           errorExample("Destination is inactive and cannot be used for trip planning.")
@@ -133,7 +129,7 @@ const tripsPaths = {
         401: responseRef("Unauthorized"),
         404: responseRef("NotFound"),
         409: errorResponse(
-          "Trip update conflicts with itinerary or overlap rules.",
+          "Trip update conflicts with itinerary restrictions.",
           errorExample(
             "Trips with an existing itinerary can only update title, budget, and preference snapshots in MVP."
           )

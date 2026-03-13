@@ -56,6 +56,10 @@ describe("attractions service", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toEqual(
       expect.objectContaining({
+        primaryPreference: {
+          slug: "popular",
+          name: "Populer",
+        },
         thumbnailImageUrl: `http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail`,
         mainImageUrl: `http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main`,
       })

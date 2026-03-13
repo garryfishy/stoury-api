@@ -104,7 +104,7 @@ describe("trips service", () => {
     ]);
   });
 
-  test("createTrip rejects overlapping trips for the same destination", async () => {
+  test("createTrip allows overlapping trips for the same destination", async () => {
     const db = {
       Destination: {
         findOne: jest.fn().mockResolvedValue({
@@ -118,8 +118,12 @@ describe("trips service", () => {
         findAll: jest.fn().mockResolvedValue([]),
       },
       Trip: {
-        findOne: jest.fn().mockResolvedValue({ id: "existing-trip-id" }),
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({
+          ...existingTrip,
+          id: "overlapping-trip-id",
+          title: "Conflicting trip",
+          budget: "1000000.00",
+        }),
       },
       TripPreferenceCategory: {
         destroy: jest.fn(),
@@ -133,22 +137,24 @@ describe("trips service", () => {
       dbProvider: () => db,
     });
 
-    await expect(
-      tripsService.createTrip(userId, {
-        title: "Conflicting trip",
-        destinationId,
-        planningMode: "manual",
-        startDate: "2026-04-10",
-        endDate: "2026-04-12",
-        budget: 1000000,
-        preferenceSource: "custom",
-        preferenceCategoryIds: [],
-      })
-    ).rejects.toMatchObject({
-      message:
-        "You already have an overlapping trip for this destination in the selected date range.",
-      statusCode: 409,
+    const result = await tripsService.createTrip(userId, {
+      title: "Conflicting trip",
+      destinationId,
+      planningMode: "manual",
+      startDate: "2026-04-10",
+      endDate: "2026-04-12",
+      budget: 1000000,
+      preferenceSource: "custom",
+      preferenceCategoryIds: [],
     });
+
+    expect(db.Trip.create).toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: "overlapping-trip-id",
+        title: "Conflicting trip",
+      })
+    );
   });
 
   test("createTrip allows profile preference snapshots to be empty", async () => {

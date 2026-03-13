@@ -231,7 +231,7 @@ describe("trips integration", () => {
     );
   });
 
-  test("enforces overlap conflicts only for the same destination", async () => {
+  test("allows overlapping trips, including for the same destination", async () => {
     seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-overlap" });
 
@@ -245,18 +245,15 @@ describe("trips integration", () => {
 
     expect(firstTrip.status).toBe(201);
 
-    const conflictingTrip = await createTrip(
+    const overlappingTrip = await createTrip(
       auth.accessToken,
       buildManualTripPayload({
         destinationId: seedData.destinations.batam.id,
-        title: "Conflicting Batam Trip",
+        title: "Overlapping Batam Trip",
       })
     );
 
-    expect(conflictingTrip.status).toBe(409);
-    expect(conflictingTrip.body.message).toBe(
-      "You already have an overlapping trip for this destination in the selected date range."
-    );
+    expect(overlappingTrip.status).toBe(201);
 
     const differentDestinationTrip = await createTrip(
       auth.accessToken,
@@ -411,7 +408,7 @@ describe("trips integration", () => {
     expect(missingIdResponse.status).toBe(404);
   });
 
-  test("PATCH /api/trips updates mutable fields and validates overlap plus ownership", async () => {
+  test("PATCH /api/trips updates mutable fields and ownership without overlap conflicts", async () => {
     seedData = await setDestinationActiveState("bali", true);
     const auth = await registerAndLogin(request, app, { label: "trips-update-owner" });
     const otherUser = await registerAndLogin(request, app, { label: "trips-update-other" });
@@ -461,9 +458,12 @@ describe("trips integration", () => {
         endDate: "2026-10-09",
       });
 
-    expect(overlapUpdateResponse.status).toBe(409);
-    expect(overlapUpdateResponse.body.message).toBe(
-      "You already have an overlapping trip for this destination in the selected date range."
+    expect(overlapUpdateResponse.status).toBe(200);
+    expect(overlapUpdateResponse.body.data).toEqual(
+      expect.objectContaining({
+        startDate: "2026-10-07",
+        endDate: "2026-10-09",
+      })
     );
 
     const otherUserUpdateResponse = await request(app)

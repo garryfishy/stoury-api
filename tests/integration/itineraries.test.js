@@ -140,9 +140,14 @@ describe("itineraries integration", () => {
             latitude: expect.any(String),
             longitude: expect.any(String),
             fullAddress: expect.any(String),
+            openingHours: expect.any(Object),
             thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
             mainImageUrl: expect.stringContaining("/api/attractions/"),
             enrichment: expect.any(Object),
+            primaryPreference: expect.objectContaining({
+              slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
+              name: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
+            }),
             categories: expect.arrayContaining([
               expect.objectContaining({ slug: "beach" }),
             ]),

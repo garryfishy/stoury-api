@@ -109,6 +109,26 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/trips"].post.requestBody.description).toContain(
       "Both planning modes use the same required trip-level `budget` field"
     );
+    expect(document.paths["/api/trips"].post.description).toContain(
+      "Overlapping trips are allowed"
+    );
+    expect(document.paths["/api/trips"].post.responses[409]).toBeUndefined();
+    expect(document.components.schemas.PrimaryPreferenceBucket).toBeDefined();
+    expect(document.components.schemas.Attraction.properties.primaryPreference).toEqual(
+      expect.objectContaining({
+        $ref: "#/components/schemas/PrimaryPreferenceBucket",
+      })
+    );
+    expect(document.components.schemas.ItineraryAttractionSummary.required).toEqual(
+      expect.arrayContaining(["openingHours", "primaryPreference"])
+    );
+    expect(
+      document.components.schemas.ItineraryAttractionSummary.properties.primaryPreference
+    ).toEqual(
+      expect.objectContaining({
+        $ref: "#/components/schemas/PrimaryPreferenceBucket",
+      })
+    );
     expect(document.paths["/api/trips/{tripId}/itinerary"].put.description).toContain(
       "rough budget estimate guidance"
     );
