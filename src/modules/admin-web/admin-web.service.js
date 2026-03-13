@@ -193,6 +193,15 @@ const createAdminWebService = ({
     });
   },
 
+  async backfillPendingAttractionPhotos(attractionId, { force = false } = {}) {
+    return enrichmentService.backfillPhotos({
+      attractionId,
+      limit: 1,
+      dryRun: false,
+      force,
+    });
+  },
+
   async enrichPendingAttraction(attractionId) {
     return enrichmentService.enrichAttraction(attractionId);
   },
@@ -204,6 +213,16 @@ const createAdminWebService = ({
       dryRun: false,
       staleOnly: filters.staleOnly || false,
       staleDays: filters.staleDays || DEFAULT_STALE_DAYS,
+    });
+  },
+
+  async backfillPendingBatchPhotos(filters = {}) {
+    return enrichmentService.backfillPhotos({
+      destinationId: filters.destinationId || null,
+      attractionId: filters.attractionId || null,
+      limit: filters.limit || 25,
+      dryRun: false,
+      force: filters.force || false,
     });
   },
 

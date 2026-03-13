@@ -12,7 +12,9 @@ const {
   resolvePendingReview,
   rejectPendingReview,
   runPendingAttractionEnrichment,
+  runPendingAttractionPhotoBackfill,
   runPendingBatchEnrichment,
+  runPendingBatchPhotoBackfill,
   runDestinationEnrichment,
   runDestinationPhotoBackfill,
   updateDestinationState,
@@ -43,7 +45,12 @@ adminWebRouter.post(
 adminWebRouter.get("/enrichment/pending", renderPendingEnrichmentShell);
 adminWebRouter.get("/enrichment/:attractionId/review", renderPendingReviewPage);
 adminWebRouter.post("/enrichment/pending/batch", runPendingBatchEnrichment);
+adminWebRouter.post("/enrichment/pending/photos/batch", runPendingBatchPhotoBackfill);
 adminWebRouter.post("/enrichment/:attractionId/enrich", runPendingAttractionEnrichment);
+adminWebRouter.post(
+  "/enrichment/:attractionId/backfill-photos",
+  runPendingAttractionPhotoBackfill
+);
 adminWebRouter.post("/enrichment/:attractionId/review/resolve", resolvePendingReview);
 adminWebRouter.post("/enrichment/:attractionId/review/reject", rejectPendingReview);
 adminWebRouter.use(renderAdminNotFound);

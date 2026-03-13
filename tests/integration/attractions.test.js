@@ -349,8 +349,15 @@ describe("attractions integration", () => {
       expect.objectContaining({
         id: expect.any(String),
         slug: "tanah-lot",
+        shortLocation: expect.any(String),
         thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
         mainImageUrl: expect.stringContaining("/api/attractions/"),
+        photos: expect.arrayContaining([
+          expect.objectContaining({
+            url: expect.stringContaining("/api/attractions/"),
+            type: expect.stringMatching(/^(main|thumbnail)$/),
+          }),
+        ]),
         openingHours: expect.any(Object),
         destination: expect.objectContaining({
           slug: "bali",
@@ -371,6 +378,10 @@ describe("attractions integration", () => {
           externalLastSyncedAt: null,
         },
       })
+    );
+    expect(response.body.data.photos.length).toBeLessThanOrEqual(4);
+    expect(new Set(response.body.data.photos.map((photo) => photo.url)).size).toBe(
+      response.body.data.photos.length
     );
   });
 

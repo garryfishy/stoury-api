@@ -11,7 +11,6 @@ const {
   DEFAULT_DAY_END_MINUTES,
   DEFAULT_ITEM_BUFFER_MINUTES,
   DEFAULT_MAX_ITEMS_PER_DAY,
-  findSchedulableWindow,
   getDateOnlyForTripDay,
   minutesToTimeString,
   serializeAttractionSummary,
@@ -27,6 +26,13 @@ const {
   scoreAttractionCandidate,
   sortCandidatesDeterministically,
 } = require("./ai-planning.helpers");
+const {
+  findBestCandidateForDay,
+} = require("./ai-planning.locality");
+const {
+  getCandidateBestVisitTime,
+  getCandidateOpeningHoursHint,
+} = require("./ai-planning.timing");
 const {
   buildBudgetAnalysis,
   getBudgetNumber,
@@ -129,6 +135,11 @@ const createAiPlanningService = ({
     const providerInput = deterministicCandidates.map((candidate) => ({
       attractionId: candidate.attractionId,
       name: readRecordValue(candidate.attraction, ["name"], ""),
+      fullAddress: readRecordValue(candidate.attraction, ["fullAddress"], ""),
+      latitude: readRecordValue(candidate.attraction, ["latitude"], null),
+      longitude: readRecordValue(candidate.attraction, ["longitude"], null),
+      bestVisitTime: getCandidateBestVisitTime(candidate),
+      openingHoursHint: getCandidateOpeningHoursHint(candidate),
       categorySlugs: candidate.categorySlugs,
       rating: candidate.rating,
       estimatedDurationMinutes: candidate.durationMinutes,
@@ -145,6 +156,7 @@ const createAiPlanningService = ({
         destinationId: readRecordValue(trip, ["destinationId"]),
         startDate: readRecordValue(trip, ["startDate"], ""),
         endDate: readRecordValue(trip, ["endDate"], ""),
+        requestedItemSlots: tripDurationDays * DEFAULT_MAX_ITEMS_PER_DAY,
         budget: readRecordValue(trip, ["budget"], null),
         budgetPerDay:
           budgetValue === null
@@ -244,37 +256,35 @@ const createAiPlanningService = ({
       const date = getDateOnlyForTripDay(readRecordValue(trip, ["startDate"]), dayNumber);
       const items = [];
       let desiredStartMinutes = DEFAULT_DAY_START_MINUTES;
+      let dayAnchorCandidate = null;
+      let previousCandidate = null;
 
       while (
         items.length < DEFAULT_MAX_ITEMS_PER_DAY &&
         remainingCandidates.length
       ) {
-        let selectedIndex = -1;
-        let selectedWindow = null;
+        const nextCandidateSelection = findBestCandidateForDay({
+          remainingCandidates,
+          dateOnly: date,
+          desiredStartMinutes,
+          previousCandidate,
+          dayAnchorCandidate,
+          dailyStartMinutes: DEFAULT_DAY_START_MINUTES,
+          dailyEndMinutes: DEFAULT_DAY_END_MINUTES,
+        });
 
-        for (let index = 0; index < remainingCandidates.length; index += 1) {
-          const candidate = remainingCandidates[index];
-          const window = findSchedulableWindow({
-            openingHours: readRecordValue(candidate.attraction, ["openingHours"], {}),
-            dateOnly: date,
-            desiredStartMinutes,
-            durationMinutes: candidate.durationMinutes,
-            dailyStartMinutes: DEFAULT_DAY_START_MINUTES,
-            dailyEndMinutes: DEFAULT_DAY_END_MINUTES,
-          });
-
-          if (window) {
-            selectedIndex = index;
-            selectedWindow = window;
-            break;
-          }
-        }
-
-        if (selectedIndex < 0 || !selectedWindow) {
+        if (!nextCandidateSelection) {
           break;
         }
 
+        const { selectedIndex, selectedWindow } = nextCandidateSelection;
         const [selectedCandidate] = remainingCandidates.splice(selectedIndex, 1);
+
+        if (!dayAnchorCandidate) {
+          dayAnchorCandidate = selectedCandidate;
+        }
+
+        previousCandidate = selectedCandidate;
         const budgetEstimate = estimateItineraryItemBudget({
           attraction: selectedCandidate.attraction,
           categories: selectedCandidate.categories,

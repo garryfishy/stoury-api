@@ -92,6 +92,21 @@ const attraction = {
   categories: [attractionCategory],
 };
 
+const attractionDetail = {
+  ...attraction,
+  shortLocation: "Nongsa, Batam",
+  photos: [
+    {
+      url: "https://images.example.com/attractions/pantai-nongsa-main.jpg",
+      type: "main",
+    },
+    {
+      url: "https://images.example.com/attractions/pantai-nongsa-thumb.jpg",
+      type: "thumbnail",
+    },
+  ],
+};
+
 const dashboardHomeCard = {
   id: attraction.id,
   slug: attraction.slug,
@@ -611,6 +626,7 @@ const adminPhotoBackfillSummary = {
 
 module.exports = {
   attraction,
+  attractionDetail,
   attractionCategory,
   adminBatchEnrichmentSummary,
   adminEnrichmentFailedResult,

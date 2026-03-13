@@ -113,6 +113,20 @@
         <input type="hidden" name="staleDays" value="<%= filters.staleDays %>">
         <button type="submit" class="button button-primary">Run batch enrichment</button>
       </form>
+
+      <form
+        method="post"
+        action="/admin/enrichment/pending/photos/batch"
+        class="inline-form"
+        data-admin-form
+      >
+        <input type="hidden" name="destinationId" value="<%= filters.destinationId %>">
+        <input type="hidden" name="status" value="<%= filters.status %>">
+        <input type="hidden" name="limit" value="<%= filters.limit %>">
+        <input type="hidden" name="staleOnly" value="<%= filters.staleOnly ? "true" : "false" %>">
+        <input type="hidden" name="staleDays" value="<%= filters.staleDays %>">
+        <button type="submit" class="button button-secondary">Run batch photo backfill</button>
+      </form>
     </section>
 
     <section class="panel-card">
@@ -177,6 +191,15 @@
                     <button type="submit" class="button button-primary">Enrich now</button>
                   </form>
                 <% } %>
+
+                <form
+                  method="post"
+                  action="/admin/enrichment/<%= item.id %>/backfill-photos?page=<%= pagination.page %>&destinationId=<%= encodeURIComponent(filters.destinationId) %>&status=<%= encodeURIComponent(filters.status) %>&limit=<%= filters.limit %>&staleOnly=<%= filters.staleOnly ? "true" : "false" %>&staleDays=<%= filters.staleDays %>"
+                  class="inline-form"
+                  data-admin-form
+                >
+                  <button type="submit" class="button button-secondary">Backfill photos</button>
+                </form>
               </div>
             </article>
           <% }) %>

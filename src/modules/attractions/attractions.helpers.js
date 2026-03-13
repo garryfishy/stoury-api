@@ -11,6 +11,7 @@ const ATTRACTION_PHOTO_VARIANTS = Object.freeze({
   thumbnail: "thumbnail",
   main: "main",
 });
+const ATTRACTION_DETAIL_PHOTO_LIMIT = 4;
 
 const getPublicApiBaseUrl = () =>
   String(env.OPENAPI_SERVER_URL || `http://localhost:${env.PORT}`).replace(/\/$/, "");
@@ -40,6 +41,78 @@ const resolveAttractionImageUrl = (
       : readRecordValue(record, ["mainImageUrl"], null);
 
   return storedUrl || buildAttractionPhotoUrl(record, variant);
+};
+
+const deriveShortLocation = (record, destination) => {
+  const fullAddress = String(readRecordValue(record, ["fullAddress"], "") || "").trim();
+  const destinationName = String(readRecordValue(destination, ["name"], "") || "").trim();
+  const cityName =
+    String(readRecordValue(destination, ["cityName"], "") || "").trim() || destinationName;
+  const addressParts = fullAddress
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const cityIndex = addressParts.findIndex(
+    (part) => part.toLowerCase() === cityName.toLowerCase()
+  );
+
+  if (cityIndex > 0) {
+    return `${addressParts[cityIndex - 1]}, ${cityName}`;
+  }
+
+  if (destinationName && cityIndex === -1) {
+    const destinationNameIndex = addressParts.findIndex(
+      (part) => part.toLowerCase() === destinationName.toLowerCase()
+    );
+
+    if (destinationNameIndex > 0) {
+      return `${addressParts[destinationNameIndex - 1]}, ${destinationName}`;
+    }
+  }
+
+  if (addressParts.length >= 2) {
+    return addressParts.slice(-2).join(", ");
+  }
+
+  return cityName || destinationName || fullAddress || null;
+};
+
+const buildAttractionPhotoGallery = (record) => {
+  const gallery = [];
+  const seenUrls = new Set();
+  const candidates = [
+    {
+      type: ATTRACTION_PHOTO_VARIANTS.main,
+      url: resolveAttractionImageUrl(record, ATTRACTION_PHOTO_VARIANTS.main),
+    },
+    {
+      type: ATTRACTION_PHOTO_VARIANTS.thumbnail,
+      url: resolveAttractionImageUrl(record, ATTRACTION_PHOTO_VARIANTS.thumbnail),
+    },
+    {
+      type: ATTRACTION_PHOTO_VARIANTS.main,
+      url: buildAttractionPhotoUrl(record, ATTRACTION_PHOTO_VARIANTS.main),
+    },
+    {
+      type: ATTRACTION_PHOTO_VARIANTS.thumbnail,
+      url: buildAttractionPhotoUrl(record, ATTRACTION_PHOTO_VARIANTS.thumbnail),
+    },
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate.url || seenUrls.has(candidate.url)) {
+      continue;
+    }
+
+    seenUrls.add(candidate.url);
+    gallery.push(candidate);
+
+    if (gallery.length >= ATTRACTION_DETAIL_PHOTO_LIMIT) {
+      break;
+    }
+  }
+
+  return gallery;
 };
 
 const serializeAttractionCategory = (record) => ({
@@ -95,6 +168,11 @@ const serializeAttraction = (record, options = {}) => {
     },
     primaryPreference: serializePrimaryPreferenceBucket(categories),
   };
+
+  if (options.includeDetailFields) {
+    attraction.shortLocation = deriveShortLocation(record, options.destination);
+    attraction.photos = buildAttractionPhotoGallery(record);
+  }
 
   if (options.destination) {
     attraction.destination = serializeDestination(options.destination);
@@ -153,7 +231,9 @@ const loadAttractionCategoriesByAttractionIds = async (db, attractionIds) => {
 
 module.exports = {
   ATTRACTION_PHOTO_VARIANTS,
+  buildAttractionPhotoGallery,
   buildAttractionPhotoUrl,
+  deriveShortLocation,
   getProductPreferenceBucketKey,
   loadAttractionCategoriesByAttractionIds,
   resolveAttractionImageUrl,

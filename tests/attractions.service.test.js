@@ -211,6 +211,67 @@ describe("attractions service", () => {
     expect(result.body).toBeInstanceOf(Buffer);
   });
 
+  test("getDetail includes shortLocation and a deduplicated photo gallery", async () => {
+    const attractionId = "33333333-3333-4333-8333-333333333333";
+    const destinationId = "22222222-2222-4222-8222-222222222222";
+    const db = {
+      Attraction: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: attractionId,
+          destinationId,
+          isActive: true,
+          name: "Pantai Nongsa",
+          slug: "pantai-nongsa",
+          description: "Beach",
+          fullAddress: "Nongsa, Batam, Kepulauan Riau, Indonesia",
+          latitude: "1.1870000",
+          longitude: "104.1190000",
+          estimatedDurationMinutes: 120,
+          openingHours: {},
+          rating: "4.5",
+          thumbnailImageUrl: `https://cdn.example.com/attractions/${attractionId}-main.jpg`,
+          mainImageUrl: `https://cdn.example.com/attractions/${attractionId}-main.jpg`,
+          metadata: {},
+        }),
+        findOne: jest.fn(),
+      },
+      Destination: {
+        findOne: jest.fn().mockResolvedValue({
+          id: destinationId,
+          slug: "batam",
+          name: "Batam",
+          cityName: "Batam",
+          isActive: true,
+        }),
+      },
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+    });
+
+    const result = await attractionsService.getDetail(attractionId);
+
+    expect(result.shortLocation).toBe("Nongsa, Batam");
+    expect(result.photos).toEqual([
+      {
+        url: `https://cdn.example.com/attractions/${attractionId}-main.jpg`,
+        type: "main",
+      },
+      {
+        url: `http://localhost:3000/api/attractions/${attractionId}/photo?variant=main`,
+        type: "main",
+      },
+      {
+        url: `http://localhost:3000/api/attractions/${attractionId}/photo?variant=thumbnail`,
+        type: "thumbnail",
+      },
+    ]);
+    expect(result.primaryPreference).toEqual({
+      slug: "popular",
+      name: "Populer",
+    });
+  });
+
   test("getPhotoAsset does not redirect when the stored image URL points back to the same photo endpoint", async () => {
     const attractionId = "33333333-3333-4333-8333-333333333333";
     const db = {

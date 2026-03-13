@@ -142,6 +142,7 @@ const createAdminAttractionsService = ({
 
   const normalizePhotoBackfillFilters = (filters = {}) => ({
     destinationId: filters.destinationId || null,
+    attractionId: filters.attractionId || null,
     limit: toPositiveInteger(filters.limit, DEFAULT_BATCH_LIMIT, MAX_BATCH_LIMIT),
     dryRun: toBoolean(filters.dryRun, false),
     force: toBoolean(filters.force, false),
@@ -262,6 +263,10 @@ const createAdminAttractionsService = ({
         [Op.ne]: null,
       },
     };
+
+    if (filters.attractionId) {
+      where.id = filters.attractionId;
+    }
 
     if (filters.destinationId) {
       await assertDestinationExists(Destination, filters.destinationId, transaction);

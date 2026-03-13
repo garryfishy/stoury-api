@@ -62,6 +62,11 @@ const createExternalPlanningProvider = ({
         candidates: candidates.map((candidate) => ({
           attractionId: candidate.attractionId,
           name: candidate.name,
+          fullAddress: candidate.fullAddress,
+          latitude: candidate.latitude,
+          longitude: candidate.longitude,
+          bestVisitTime: candidate.bestVisitTime,
+          openingHoursHint: candidate.openingHoursHint,
           categorySlugs: candidate.categorySlugs,
           rating: candidate.rating,
           estimatedDurationMinutes: candidate.estimatedDurationMinutes,

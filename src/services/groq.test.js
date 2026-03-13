@@ -33,8 +33,30 @@ describe("groq client", () => {
       },
       preferences: [{ id: "pref-1", slug: "food", name: "Food" }],
       candidates: [
-        { attractionId: "attr-1", name: "Temple Complex" },
-        { attractionId: "attr-2", name: "Food Street" },
+        {
+          attractionId: "attr-1",
+          name: "Temple Complex",
+          bestVisitTime: "morning",
+          openingHoursHint: {
+            opensAt: "08:00",
+            closesAt: "18:00",
+          },
+          fullAddress: "Nagoya, Batam, Kepulauan Riau, Indonesia",
+          latitude: "1.1450",
+          longitude: "104.0100",
+        },
+        {
+          attractionId: "attr-2",
+          name: "Food Street",
+          bestVisitTime: "evening",
+          openingHoursHint: {
+            opensAt: "10:00",
+            closesAt: "22:00",
+          },
+          fullAddress: "Harbour Bay, Batam, Kepulauan Riau, Indonesia",
+          latitude: "1.1550",
+          longitude: "103.9900",
+        },
       ],
     });
 
@@ -59,6 +81,13 @@ describe("groq client", () => {
         type: "json_object",
       })
     );
+    expect(body.messages[0].content).toContain("geographically coherent same-day clusters");
+    expect(body.messages[0].content).toContain("morning-friendly heritage or temple stops before sunset or evening venues");
+    expect(body.messages[1].content).toContain('"bestVisitTime":"morning"');
+    expect(body.messages[1].content).toContain('"openingHoursHint":{"opensAt":"08:00","closesAt":"18:00"}');
+    expect(body.messages[1].content).toContain("Treat bestVisitTime and openingHoursHint as strong timing hints.");
+    expect(body.messages[1].content).toContain('"location":{"latitude":1.145');
+    expect(body.messages[1].content).toContain('"longitude":103.99');
   });
 
   test("normalizes abort errors into AI_TIMEOUT", async () => {

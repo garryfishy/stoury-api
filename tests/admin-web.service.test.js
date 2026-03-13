@@ -193,6 +193,12 @@ describe("admin web service", () => {
 
     await service.enrichDestination("dest-1");
     await service.backfillDestinationPhotos("dest-1", { force: true });
+    await service.backfillPendingAttractionPhotos("attr-1", { force: true });
+    await service.backfillPendingBatchPhotos({
+      destinationId: "dest-1",
+      limit: 10,
+      force: true,
+    });
 
     expect(enrichmentService.enrichMissing).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -207,6 +213,19 @@ describe("admin web service", () => {
         force: true,
       })
     );
+    expect(enrichmentService.backfillPhotos).toHaveBeenCalledWith({
+      attractionId: "attr-1",
+      limit: 1,
+      dryRun: false,
+      force: true,
+    });
+    expect(enrichmentService.backfillPhotos).toHaveBeenCalledWith({
+      attractionId: null,
+      destinationId: "dest-1",
+      limit: 10,
+      dryRun: false,
+      force: true,
+    });
     await service.resolvePendingReview("attr-1", "google-place-1");
     await service.rejectPendingReview("attr-1", "no match");
     expect(enrichmentService.resolveReview).toHaveBeenCalledWith("attr-1", "google-place-1");

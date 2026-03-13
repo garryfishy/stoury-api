@@ -15,6 +15,8 @@ const { adminWebRouter } = require("./modules/admin-web/admin-web.routes");
 const { apiRouter } = require("./routes");
 
 const app = express();
+app.disable("etag");
+
 const helmetOptions = env.ENABLE_HTTPS_UPGRADE_CSP
   ? {}
   : {
@@ -36,6 +38,12 @@ app.use(
 app.use(helmet(helmetOptions));
 app.use(express.json());
 app.use("/admin/assets", express.static(path.join(__dirname, "public/admin")));
+app.use("/api", (_req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
 if (env.NODE_ENV !== "test") {
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   logAdminEnrichmentStartupStatus();

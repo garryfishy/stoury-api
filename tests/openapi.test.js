@@ -119,6 +119,34 @@ describe("OpenAPI document", () => {
         $ref: "#/components/schemas/PrimaryPreferenceBucket",
       })
     );
+    expect(document.components.schemas.AttractionDetail).toBeDefined();
+    expect(document.components.schemas.AttractionDetailPhoto).toBeDefined();
+    expect(document.components.schemas.AttractionDetail.allOf[1].required).toEqual(
+      expect.arrayContaining(["shortLocation", "photos"])
+    );
+    expect(
+      document.paths["/api/attractions/{idOrSlug}"].get.responses[200].content[
+        "application/json"
+      ].schema.properties.data
+    ).toEqual(
+      expect.objectContaining({
+        $ref: "#/components/schemas/AttractionDetail",
+      })
+    );
+    expect(
+      document.paths["/api/attractions/{idOrSlug}"].get.responses[200].content[
+        "application/json"
+      ].example.data
+    ).toEqual(
+      expect.objectContaining({
+        shortLocation: expect.any(String),
+        photos: expect.arrayContaining([
+          expect.objectContaining({
+            type: expect.stringMatching(/^(main|thumbnail)$/),
+          }),
+        ]),
+      })
+    );
     expect(document.components.schemas.ItineraryAttractionSummary.required).toEqual(
       expect.arrayContaining(["openingHours", "primaryPreference"])
     );

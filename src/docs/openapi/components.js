@@ -560,6 +560,46 @@ const components = {
         },
       },
     },
+    AttractionDetailPhoto: {
+      type: "object",
+      required: ["url", "type"],
+      properties: {
+        url: {
+          type: "string",
+          format: "uri",
+        },
+        type: {
+          type: "string",
+          enum: ["main", "thumbnail"],
+        },
+      },
+    },
+    AttractionDetail: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/Attraction",
+        },
+        {
+          type: "object",
+          required: ["shortLocation", "photos"],
+          properties: {
+            shortLocation: {
+              type: "string",
+              nullable: true,
+              description:
+                "Stable display-friendly short location for the attraction detail screen.",
+            },
+            photos: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                $ref: "#/components/schemas/AttractionDetailPhoto",
+              },
+            },
+          },
+        },
+      ],
+    },
     DestinationAttractionCollection: {
       type: "object",
       required: ["destination", "items"],

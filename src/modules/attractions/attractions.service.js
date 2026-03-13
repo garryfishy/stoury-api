@@ -230,6 +230,7 @@ const createAttractionsService = ({
     ]);
 
     return serializeAttraction(attraction, {
+      includeDetailFields: true,
       destination,
       categories: categoriesByAttractionId.get(readRecordValue(attraction, ["id"])) || [],
     });

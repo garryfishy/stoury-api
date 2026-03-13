@@ -1,4 +1,4 @@
-const { attraction, destination } = require("../examples");
+const { attraction, attractionDetail, destination } = require("../examples");
 const {
   parameterRef,
   responseRef,
@@ -74,8 +74,8 @@ const attractionsPaths = {
       responses: {
         200: successResponse(
           "Attraction fetched.",
-          schemaRef("Attraction"),
-          successExample("Attraction fetched.", attraction)
+          schemaRef("AttractionDetail"),
+          successExample("Attraction fetched.", attractionDetail)
         ),
         404: responseRef("NotFound"),
         422: responseRef("ValidationError"),

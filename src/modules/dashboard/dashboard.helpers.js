@@ -6,6 +6,7 @@ const { readRecordValue } = require("../../utils/model-helpers");
 const { serializeDestination } = require("../destinations/destinations.helpers");
 const {
   ATTRACTION_PHOTO_VARIANTS,
+  deriveShortLocation,
   getProductPreferenceBucketKey,
   resolveAttractionImageUrl,
 } = require("../attractions/attractions.helpers");
@@ -63,40 +64,6 @@ const getPopularityScore = (record) => {
   const rating = getDisplayRating(record) || 0;
 
   return Math.log10(externalReviewCount + 1) * 100 + rating * 20;
-};
-
-const deriveShortLocation = (record, destination) => {
-  const fullAddress = String(readRecordValue(record, ["fullAddress"], "") || "").trim();
-  const destinationName = String(readRecordValue(destination, ["name"], "") || "").trim();
-  const cityName =
-    String(readRecordValue(destination, ["cityName"], "") || "").trim() || destinationName;
-  const addressParts = fullAddress
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const destinationIndex = addressParts.findIndex(
-    (part) => part.toLowerCase() === cityName.toLowerCase()
-  );
-
-  if (destinationIndex > 0) {
-    return `${addressParts[destinationIndex - 1]}, ${cityName}`;
-  }
-
-  if (destinationName && destinationIndex === -1) {
-    const destinationNameIndex = addressParts.findIndex(
-      (part) => part.toLowerCase() === destinationName.toLowerCase()
-    );
-
-    if (destinationNameIndex > 0) {
-      return `${addressParts[destinationNameIndex - 1]}, ${destinationName}`;
-    }
-  }
-
-  if (addressParts.length >= 2) {
-    return addressParts.slice(-2).join(", ");
-  }
-
-  return cityName || destinationName || fullAddress || null;
 };
 
 const serializeDashboardCard = (record, { destination, categories = [] } = {}) => {

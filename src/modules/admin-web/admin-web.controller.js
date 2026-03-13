@@ -434,6 +434,44 @@ const runPendingBatchEnrichment = asyncHandler(async (req, res) => {
   });
 });
 
+const runPendingAttractionPhotoBackfill = asyncHandler(async (req, res) => {
+  const result = await adminWebService.backfillPendingAttractionPhotos(
+    req.params.attractionId,
+    {
+      force: coerceFormBoolean(req.body?.force, false),
+    }
+  );
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: result.failedCount > 0 ? "warning" : "success",
+      title: "Attraction photo backfill processed",
+      message: `Processed ${result.attemptedCount} attraction: ${result.updatedCount} updated, ${result.skippedCount} skipped, ${result.failedCount} failed.`,
+    },
+  });
+});
+
+const runPendingBatchPhotoBackfill = asyncHandler(async (req, res) => {
+  const filters = normalizePendingPageFilters(req.body);
+  const result = await adminWebService.backfillPendingBatchPhotos({
+    destinationId: filters.destinationId || null,
+    limit: filters.limit,
+    force: coerceFormBoolean(req.body?.force, false),
+  });
+  req.query = {
+    ...req.query,
+    ...filters,
+  };
+
+  return renderPendingEnrichmentPageWithAlert(req, res, {
+    alert: {
+      type: result.failedCount > 0 ? "warning" : "success",
+      title: "Batch photo backfill processed",
+      message: `Processed ${result.attemptedCount} attractions: ${result.updatedCount} updated, ${result.skippedCount} skipped, ${result.failedCount} failed.`,
+    },
+  });
+});
+
 const renderPendingReviewPage = asyncHandler(async (req, res) => {
   return renderPendingReviewPageWithAlert(req, res, req.params.attractionId);
 });
@@ -540,7 +578,9 @@ module.exports = {
   resolvePendingReview,
   rejectPendingReview,
   runPendingAttractionEnrichment,
+  runPendingAttractionPhotoBackfill,
   runPendingBatchEnrichment,
+  runPendingBatchPhotoBackfill,
   runDestinationEnrichment,
   runDestinationPhotoBackfill,
   updateDestinationState,

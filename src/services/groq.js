@@ -4,6 +4,21 @@ const DEFAULT_GROQ_CHAT_ENDPOINT = "https://api.groq.com/openai/v1/chat/completi
 const DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant";
 
 const normalizeText = (value) => String(value || "").trim();
+const toFiniteNumber = (value) => {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const normalizeCoordinate = (value) => {
+  const parsed = toFiniteNumber(value);
+
+  return parsed === null ? null : Number(parsed.toFixed(4));
+};
+const getRequestedItemSlots = (trip) => {
+  const parsed = Number(trip?.requestedItemSlots);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
 
 const createGroqError = (
   message,
@@ -28,6 +43,8 @@ const buildSystemPrompt = (includeExplanation) =>
     "Return ONLY a valid JSON object.",
     "rankedAttractionIds must be a subset of the provided candidate IDs.",
     "Do not invent attractions, places, dates, or times.",
+    "Prefer geographically coherent same-day clusters.",
+    "Inside a local cluster, rank morning-friendly heritage or temple stops before sunset or evening venues, and nightlife-oriented stops latest.",
     includeExplanation
       ? "Use explanation for one short rationale sentence."
       : "Set explanation to null.",
@@ -56,29 +73,66 @@ const buildUserPrompt = ({ trip, preferences, candidates, includeExplanation }) 
     })
   );
   const candidateSummary = (Array.isArray(candidates) ? candidates : []).map(
-    (candidate) => ({
-      attractionId: normalizeText(candidate?.attractionId),
-      name: normalizeText(candidate?.name),
-      categorySlugs: Array.isArray(candidate?.categorySlugs)
-        ? candidate.categorySlugs.map((slug) => normalizeText(slug)).filter(Boolean)
-        : [],
-      rating:
-        candidate?.rating === undefined || candidate?.rating === null
-          ? null
-          : Number(candidate.rating),
-      estimatedDurationMinutes:
-        candidate?.estimatedDurationMinutes === undefined ||
-        candidate?.estimatedDurationMinutes === null
-          ? null
-          : Number(candidate.estimatedDurationMinutes),
-    })
+    (candidate) => {
+      const latitude = normalizeCoordinate(candidate?.latitude);
+      const longitude = normalizeCoordinate(candidate?.longitude);
+      const summary = {
+        attractionId: normalizeText(candidate?.attractionId),
+        name: normalizeText(candidate?.name),
+        categorySlugs: Array.isArray(candidate?.categorySlugs)
+          ? candidate.categorySlugs.map((slug) => normalizeText(slug)).filter(Boolean)
+          : [],
+        rating:
+          candidate?.rating === undefined || candidate?.rating === null
+            ? null
+            : Number(candidate.rating),
+        estimatedDurationMinutes:
+          candidate?.estimatedDurationMinutes === undefined ||
+          candidate?.estimatedDurationMinutes === null
+            ? null
+            : Number(candidate.estimatedDurationMinutes),
+      };
+
+      const bestVisitTime = normalizeText(candidate?.bestVisitTime);
+
+      if (bestVisitTime) {
+        summary.bestVisitTime = bestVisitTime;
+      }
+
+      if (
+        candidate?.openingHoursHint &&
+        typeof candidate.openingHoursHint === "object"
+      ) {
+        const opensAt = normalizeText(candidate.openingHoursHint.opensAt);
+        const closesAt = normalizeText(candidate.openingHoursHint.closesAt);
+
+        if (opensAt || closesAt) {
+          summary.openingHoursHint = {
+            opensAt: opensAt || null,
+            closesAt: closesAt || null,
+          };
+        }
+      }
+
+      summary.location =
+        latitude === null || longitude === null
+          ? normalizeText(candidate?.fullAddress) || null
+          : {
+              latitude,
+              longitude,
+            };
+
+      return summary;
+    }
   );
 
   return [
-    "Rank the candidate attractions for the trip context below.",
-    "Prioritize preference fit first, then attraction quality and itinerary usefulness.",
-    "Use budget only as a soft signal. Do not infer exact prices.",
-    "Use every candidate ID at most once.",
+    "Rank these candidates for the trip.",
+    "Prioritize preference fit first, then quality and itinerary usefulness.",
+    "Keep nearby attractions grouped.",
+    "Treat bestVisitTime and openingHoursHint as strong timing hints.",
+    "Within one area, place earlier-day or earlier-closing heritage stops before sunset viewpoints, and place sunset culinary or nightlife venues later.",
+    "Use budget only as a soft signal. Use each ID once.",
     'Return exactly this shape: {"rankedAttractionIds":["id-1"],"explanation":"short rationale"}',
     includeExplanation
       ? "Include a short explanation."
@@ -132,9 +186,13 @@ const createGroqClient = ({
       });
     }
 
+    const requestedItemSlots = getRequestedItemSlots(trip);
+    const effectiveMaxCandidates = requestedItemSlots
+      ? Math.min(maxCandidates, Math.max(8, requestedItemSlots))
+      : maxCandidates;
     const rankedCandidates = (Array.isArray(candidates) ? candidates : [])
       .filter((candidate) => normalizeText(candidate?.attractionId))
-      .slice(0, maxCandidates);
+      .slice(0, effectiveMaxCandidates);
     const knownAttractionIds = rankedCandidates.map((candidate) =>
       normalizeText(candidate.attractionId)
     );

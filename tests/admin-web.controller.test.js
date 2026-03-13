@@ -1,5 +1,7 @@
 jest.mock("../src/modules/admin-web/admin-web.service", () => ({
   adminWebService: {
+    backfillPendingAttractionPhotos: jest.fn(),
+    backfillPendingBatchPhotos: jest.fn(),
     backfillDestinationPhotos: jest.fn(),
     getDashboardData: jest.fn(),
     getPendingEnrichmentPageData: jest.fn(),
@@ -29,7 +31,9 @@ const {
   resolvePendingReview,
   runDestinationEnrichment,
   runPendingAttractionEnrichment,
+  runPendingAttractionPhotoBackfill,
   runPendingBatchEnrichment,
+  runPendingBatchPhotoBackfill,
   runDestinationPhotoBackfill,
   updateDestinationState,
 } = require("../src/modules/admin-web/admin-web.controller");
@@ -337,6 +341,46 @@ describe("admin web controller", () => {
     );
   });
 
+  test("runPendingAttractionPhotoBackfill re-renders the pending page with a photo alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      params: { attractionId: "attr-1" },
+      body: { force: "true" },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.backfillPendingAttractionPhotos.mockResolvedValue({
+      attemptedCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+      failedCount: 0,
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: {
+        items: [],
+        total: 0,
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    await runPendingAttractionPhotoBackfill(req, res, jest.fn());
+
+    expect(adminWebService.backfillPendingAttractionPhotos).toHaveBeenCalledWith("attr-1", {
+      force: true,
+    });
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Attraction photo backfill processed",
+        }),
+      })
+    );
+  });
+
   test("runPendingBatchEnrichment re-renders the pending page with a batch alert", async () => {
     const req = {
       adminAuth: { email: "admin@example.com" },
@@ -371,6 +415,54 @@ describe("admin web controller", () => {
       expect.objectContaining({
         alert: expect.objectContaining({
           title: "Batch enrichment processed",
+        }),
+      })
+    );
+  });
+
+  test("runPendingBatchPhotoBackfill re-renders the pending page with a batch photo alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      body: {
+        destinationId: "dest-1",
+        status: "enriched",
+        limit: "25",
+        staleOnly: "false",
+        staleDays: "30",
+        force: "true",
+      },
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.backfillPendingBatchPhotos.mockResolvedValue({
+      attemptedCount: 3,
+      updatedCount: 2,
+      skippedCount: 1,
+      failedCount: 0,
+    });
+    adminWebService.getPendingEnrichmentPageData.mockResolvedValue({
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+      destinationOptions: [],
+      pendingEnrichment: {
+        items: [],
+        total: 0,
+        pagination: { page: 1, totalPages: 1 },
+      },
+    });
+
+    await runPendingBatchPhotoBackfill(req, res, jest.fn());
+
+    expect(adminWebService.backfillPendingBatchPhotos).toHaveBeenCalledWith({
+      destinationId: "dest-1",
+      limit: 25,
+      force: true,
+    });
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/pending-placeholder",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Batch photo backfill processed",
         }),
       })
     );

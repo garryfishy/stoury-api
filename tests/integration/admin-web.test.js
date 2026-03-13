@@ -158,6 +158,7 @@ describe("admin web integration", () => {
     expect(pendingResponse.text).toContain("Pending Enrichment");
     expect(pendingResponse.text).toContain('data-page="admin-pending-enrichment"');
     expect(pendingResponse.text).toContain("Run batch enrichment");
+    expect(pendingResponse.text).toContain("Run batch photo backfill");
     expect(pendingResponse.text).toContain("Apply filters");
   });
 
