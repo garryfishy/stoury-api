@@ -339,10 +339,25 @@ describe("admin attractions service", () => {
         placeId: "google-place-1",
         photos: [{ photoReference: "photo-ref-1", width: 1600, height: 1200 }],
       }),
+      getPlacePhoto: jest
+        .fn()
+        .mockResolvedValueOnce({
+          body: Buffer.from("thumb"),
+          contentType: "image/jpeg",
+        })
+        .mockResolvedValueOnce({
+          body: Buffer.from("main"),
+          contentType: "image/jpeg",
+        }),
+    };
+    const photoCache = {
+      read: jest.fn(),
+      write: jest.fn().mockResolvedValue(undefined),
     };
     const service = createAdminAttractionsService({
       dbProvider: () => db,
       googlePlacesClient,
+      photoCache,
     });
 
     const result = await service.backfillPhotos({
@@ -362,6 +377,32 @@ describe("admin attractions service", () => {
     expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith("google-place-1", {
       includePhotos: true,
     });
+    expect(googlePlacesClient.getPlacePhoto).toHaveBeenNthCalledWith(1, {
+      photoReference: "photo-ref-1",
+      maxWidth: 640,
+    });
+    expect(googlePlacesClient.getPlacePhoto).toHaveBeenNthCalledWith(2, {
+      photoReference: "photo-ref-1",
+      maxWidth: 1600,
+    });
+    expect(photoCache.write).toHaveBeenNthCalledWith(
+      1,
+      attractionRecord.id,
+      "thumbnail",
+      expect.objectContaining({
+        body: Buffer.from("thumb"),
+        contentType: "image/jpeg",
+      })
+    );
+    expect(photoCache.write).toHaveBeenNthCalledWith(
+      2,
+      attractionRecord.id,
+      "main",
+      expect.objectContaining({
+        body: Buffer.from("main"),
+        contentType: "image/jpeg",
+      })
+    );
     expect(attractionRecord.update).toHaveBeenCalledWith(
       expect.objectContaining({
         thumbnailImageUrl:
@@ -398,9 +439,14 @@ describe("admin attractions service", () => {
         photos: [],
       }),
     };
+    const photoCache = {
+      read: jest.fn(),
+      write: jest.fn().mockResolvedValue(undefined),
+    };
     const service = createAdminAttractionsService({
       dbProvider: () => db,
       googlePlacesClient,
+      photoCache,
     });
 
     const result = await service.backfillPhotos({
@@ -410,6 +456,7 @@ describe("admin attractions service", () => {
     });
 
     expect(attractionRecord.update).not.toHaveBeenCalled();
+    expect(photoCache.write).not.toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
         attemptedCount: 1,

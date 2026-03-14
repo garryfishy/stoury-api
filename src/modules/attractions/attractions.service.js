@@ -1,5 +1,3 @@
-const fs = require("fs/promises");
-const path = require("path");
 const { Op } = require("sequelize");
 const { getDb, getRequiredModel } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
@@ -11,6 +9,9 @@ const {
 const { readRecordValue } = require("../../utils/model-helpers");
 const env = require("../../config/env");
 const { googlePlacesClient: defaultGooglePlacesClient } = require("../../services/google-places");
+const {
+  createFileSystemPhotoCache,
+} = require("../../utils/attraction-photo-cache");
 const {
   buildGoogleSearchQuery,
   getAttractionCoordinates,
@@ -43,10 +44,6 @@ const PHOTO_VARIANT_CONFIG = {
 };
 
 const IMAGE_CACHE_CONTROL = "private, no-store, max-age=0";
-const DEFAULT_PHOTO_CACHE_DIR =
-  env.NODE_ENV === "test"
-    ? null
-    : path.resolve(process.cwd(), ".cache", "attraction-photos");
 
 const escapeXml = (value) =>
   String(value || "")
@@ -77,80 +74,6 @@ const buildPhotoPlaceholderSvg = (attraction, variant) => {
   <text x="${Math.round(config.width * 0.08)}" y="${Math.round(config.height * 0.78)}" fill="#f8fafc" font-size="${Math.round(config.width * 0.056)}" font-family="Helvetica, Arial, sans-serif" font-weight="700">${attractionName}</text>
   <text x="${Math.round(config.width * 0.08)}" y="${Math.round(config.height * 0.88)}" fill="rgba(248,250,252,0.8)" font-size="${Math.round(config.width * 0.028)}" font-family="Helvetica, Arial, sans-serif">${destinationLabel}</text>
 </svg>`.trim();
-};
-
-const createFileSystemPhotoCache = ({ cacheDir = DEFAULT_PHOTO_CACHE_DIR } = {}) => {
-  const getBasePath = (attractionId, variant) => {
-    if (!cacheDir || !attractionId || !variant) {
-      return null;
-    }
-
-    return path.join(cacheDir, `${String(attractionId)}-${String(variant)}`);
-  };
-
-  return {
-    async read(attractionId, variant) {
-      const basePath = getBasePath(attractionId, variant);
-
-      if (!basePath) {
-        return null;
-      }
-
-      try {
-        const [metadataRaw, body] = await Promise.all([
-          fs.readFile(`${basePath}.json`, "utf8"),
-          fs.readFile(`${basePath}.bin`),
-        ]);
-        const metadata = JSON.parse(metadataRaw);
-
-        if (!metadata?.contentType || !Buffer.isBuffer(body) || !body.length) {
-          return null;
-        }
-
-        return {
-          body,
-          contentType: metadata.contentType,
-        };
-      } catch (_error) {
-        return null;
-      }
-    },
-
-    async write(attractionId, variant, asset) {
-      const basePath = getBasePath(attractionId, variant);
-
-      if (
-        !basePath ||
-        !asset ||
-        !Buffer.isBuffer(asset.body) ||
-        !asset.body.length ||
-        !asset.contentType
-      ) {
-        return;
-      }
-
-      try {
-        await fs.mkdir(cacheDir, { recursive: true });
-        await Promise.all([
-          fs.writeFile(`${basePath}.bin`, asset.body),
-          fs.writeFile(
-            `${basePath}.json`,
-            JSON.stringify(
-              {
-                contentType: asset.contentType,
-                cachedAt: new Date().toISOString(),
-              },
-              null,
-              2
-            ),
-            "utf8"
-          ),
-        ]);
-      } catch (_error) {
-        // Cache writes are best-effort only.
-      }
-    },
-  };
 };
 
 const findActiveAttractionByIdOrSlug = async (Attraction, idOrSlug) => {

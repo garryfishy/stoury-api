@@ -1,6 +1,10 @@
 const { Op, UniqueConstraintError } = require("sequelize");
+const env = require("../../config/env");
 const { getDb, getRequiredModel, withTransaction } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
+const {
+  createFileSystemPhotoCache,
+} = require("../../utils/attraction-photo-cache");
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
   buildPaginationMeta,
@@ -30,6 +34,7 @@ const {
 const createAdminAttractionsService = ({
   dbProvider = getDb,
   googlePlacesClient = defaultGooglePlacesClient,
+  photoCache = createFileSystemPhotoCache(),
 } = {}) => {
   const getModels = (db) => ({
     Attraction: getRequiredModel(db, "Attraction"),
@@ -754,6 +759,24 @@ const createAdminAttractionsService = ({
           reason: "Google Places does not expose photos for this attraction.",
           error: null,
         };
+      }
+
+      if (!dryRun) {
+        const [thumbnailPhoto, mainPhoto] = await Promise.all([
+          googlePlacesClient.getPlacePhoto({
+            photoReference: details.photos[0].photoReference,
+            maxWidth: env.GOOGLE_PLACES_PHOTO_THUMBNAIL_MAX_WIDTH,
+          }),
+          googlePlacesClient.getPlacePhoto({
+            photoReference: details.photos[0].photoReference,
+            maxWidth: env.GOOGLE_PLACES_PHOTO_MAIN_MAX_WIDTH,
+          }),
+        ]);
+
+        await Promise.all([
+          photoCache.write(attractionId, ATTRACTION_PHOTO_VARIANTS.thumbnail, thumbnailPhoto),
+          photoCache.write(attractionId, ATTRACTION_PHOTO_VARIANTS.main, mainPhoto),
+        ]);
       }
 
       const photoValues = buildPhotoPersistenceValues(attraction);
