@@ -709,11 +709,12 @@ const createAdminAttractionsService = ({
   };
 
   const buildPhotoPersistenceValues = (attraction) => ({
-    thumbnailImageUrl: buildAttractionPhotoUrl(
-      attraction,
-      ATTRACTION_PHOTO_VARIANTS.thumbnail
-    ),
-    mainImageUrl: buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.main),
+    thumbnailImageUrl:
+      readRecordValue(attraction, ["thumbnailImageUrl"], null) ||
+      buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.thumbnail),
+    mainImageUrl:
+      readRecordValue(attraction, ["mainImageUrl"], null) ||
+      buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.main),
   });
 
   const runSinglePhotoBackfill = async (

@@ -1,3 +1,5 @@
+const fs = require("fs/promises");
+const path = require("path");
 const { Op } = require("sequelize");
 const { getDb, getRequiredModel } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
@@ -41,6 +43,10 @@ const PHOTO_VARIANT_CONFIG = {
 };
 
 const IMAGE_CACHE_CONTROL = "private, no-store, max-age=0";
+const DEFAULT_PHOTO_CACHE_DIR =
+  env.NODE_ENV === "test"
+    ? null
+    : path.resolve(process.cwd(), ".cache", "attraction-photos");
 
 const escapeXml = (value) =>
   String(value || "")
@@ -73,6 +79,80 @@ const buildPhotoPlaceholderSvg = (attraction, variant) => {
 </svg>`.trim();
 };
 
+const createFileSystemPhotoCache = ({ cacheDir = DEFAULT_PHOTO_CACHE_DIR } = {}) => {
+  const getBasePath = (attractionId, variant) => {
+    if (!cacheDir || !attractionId || !variant) {
+      return null;
+    }
+
+    return path.join(cacheDir, `${String(attractionId)}-${String(variant)}`);
+  };
+
+  return {
+    async read(attractionId, variant) {
+      const basePath = getBasePath(attractionId, variant);
+
+      if (!basePath) {
+        return null;
+      }
+
+      try {
+        const [metadataRaw, body] = await Promise.all([
+          fs.readFile(`${basePath}.json`, "utf8"),
+          fs.readFile(`${basePath}.bin`),
+        ]);
+        const metadata = JSON.parse(metadataRaw);
+
+        if (!metadata?.contentType || !Buffer.isBuffer(body) || !body.length) {
+          return null;
+        }
+
+        return {
+          body,
+          contentType: metadata.contentType,
+        };
+      } catch (_error) {
+        return null;
+      }
+    },
+
+    async write(attractionId, variant, asset) {
+      const basePath = getBasePath(attractionId, variant);
+
+      if (
+        !basePath ||
+        !asset ||
+        !Buffer.isBuffer(asset.body) ||
+        !asset.body.length ||
+        !asset.contentType
+      ) {
+        return;
+      }
+
+      try {
+        await fs.mkdir(cacheDir, { recursive: true });
+        await Promise.all([
+          fs.writeFile(`${basePath}.bin`, asset.body),
+          fs.writeFile(
+            `${basePath}.json`,
+            JSON.stringify(
+              {
+                contentType: asset.contentType,
+                cachedAt: new Date().toISOString(),
+              },
+              null,
+              2
+            ),
+            "utf8"
+          ),
+        ]);
+      } catch (_error) {
+        // Cache writes are best-effort only.
+      }
+    },
+  };
+};
+
 const findActiveAttractionByIdOrSlug = async (Attraction, idOrSlug) => {
   const attraction = isUuidIdentifier(idOrSlug)
     ? await Attraction.findByPk(String(idOrSlug))
@@ -88,6 +168,7 @@ const findActiveAttractionByIdOrSlug = async (Attraction, idOrSlug) => {
 const createAttractionsService = ({
   dbProvider = getDb,
   googlePlacesClient = defaultGooglePlacesClient,
+  photoCache = createFileSystemPhotoCache(),
 } = {}) => ({
   async listByDestination(destinationId, query = {}) {
     const db = dbProvider();
@@ -250,6 +331,7 @@ const createAttractionsService = ({
         ? readRecordValue(attraction, ["thumbnailImageUrl"], null)
         : readRecordValue(attraction, ["mainImageUrl"], null);
     const generatedPhotoUrl = buildAttractionPhotoUrl(attraction, normalizedVariant);
+    const attractionId = readRecordValue(attraction, ["id"], null);
 
     if (manualImageUrl && manualImageUrl !== generatedPhotoUrl) {
       return {
@@ -259,6 +341,36 @@ const createAttractionsService = ({
         type: "redirect",
       };
     }
+
+    const cachedPhoto = attractionId
+      ? await photoCache.read(attractionId, normalizedVariant)
+      : null;
+
+    if (cachedPhoto) {
+      return {
+        body: cachedPhoto.body,
+        cacheControl: IMAGE_CACHE_CONTROL,
+        contentType: cachedPhoto.contentType,
+        statusCode: 200,
+        type: "binary",
+      };
+    }
+
+    const buildBinaryPhotoAsset = async (photo) => {
+      const asset = {
+        body: photo.body,
+        cacheControl: IMAGE_CACHE_CONTROL,
+        contentType: photo.contentType,
+        statusCode: 200,
+        type: "binary",
+      };
+
+      if (attractionId) {
+        await photoCache.write(attractionId, normalizedVariant, asset);
+      }
+
+      return asset;
+    };
 
     const tryFetchGooglePhoto = async (placeId) => {
       const details = await googlePlacesClient.getPlaceDetails(placeId, {
@@ -275,16 +387,14 @@ const createAttractionsService = ({
         maxWidth: PHOTO_VARIANT_CONFIG[normalizedVariant].maxWidth,
       });
 
-      return {
-        body: photo.body,
-        cacheControl: IMAGE_CACHE_CONTROL,
-        contentType: photo.contentType,
-        statusCode: 200,
-        type: "binary",
-      };
+      return buildBinaryPhotoAsset(photo);
     };
 
     const storedPlaceId = readRecordValue(attraction, ["externalPlaceId"], null);
+    const destinationId = readRecordValue(attraction, ["destinationId"], null);
+    const destination = destinationId
+      ? await Destination.findByPk(String(destinationId))
+      : null;
 
     if (storedPlaceId) {
       try {
@@ -294,16 +404,11 @@ const createAttractionsService = ({
           return photo;
         }
       } catch (_error) {
-        // Fall through to a placeholder rather than failing page rendering.
+        // Fall through to the destination hero or final placeholder.
       }
     }
 
-    const destinationId = readRecordValue(attraction, ["destinationId"], null);
-    const destination = destinationId
-      ? await Destination.findByPk(String(destinationId))
-      : null;
-
-    if (destination) {
+    if (destination && !storedPlaceId) {
       try {
         const candidates = await googlePlacesClient.textSearch({
           query: buildGoogleSearchQuery({ attraction, destination }),
@@ -320,8 +425,19 @@ const createAttractionsService = ({
           }
         }
       } catch (_error) {
-        // Fall through to a placeholder rather than failing page rendering.
+        // Fall through to the destination hero or final placeholder.
       }
+    }
+
+    const destinationHeroImageUrl = readRecordValue(destination, ["heroImageUrl"], null);
+
+    if (destinationHeroImageUrl) {
+      return {
+        cacheControl: IMAGE_CACHE_CONTROL,
+        location: destinationHeroImageUrl,
+        statusCode: 302,
+        type: "redirect",
+      };
     }
 
     return {

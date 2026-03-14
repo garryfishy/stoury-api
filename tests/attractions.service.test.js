@@ -211,6 +211,56 @@ describe("attractions service", () => {
     expect(result.body).toBeInstanceOf(Buffer);
   });
 
+  test("getPhotoAsset returns a cached photo before querying Google", async () => {
+    const attractionId = "33333333-3333-4333-8333-333333333333";
+    const db = {
+      Attraction: {
+        findByPk: jest.fn().mockResolvedValue({
+          id: attractionId,
+          isActive: true,
+          name: "Pantai Nongsa",
+          externalPlaceId: "google-place-1",
+          thumbnailImageUrl: null,
+          mainImageUrl: null,
+        }),
+        findOne: jest.fn(),
+      },
+      Destination: {
+        findByPk: jest.fn(),
+      },
+    };
+    const photoCache = {
+      read: jest.fn().mockResolvedValue({
+        body: Buffer.from("cached-image"),
+        contentType: "image/jpeg",
+      }),
+      write: jest.fn(),
+    };
+    const googlePlacesClient = {
+      getPlaceDetails: jest.fn(),
+      getPlacePhoto: jest.fn(),
+      textSearch: jest.fn(),
+    };
+    const attractionsService = createAttractionsService({
+      dbProvider: () => db,
+      googlePlacesClient,
+      photoCache,
+    });
+
+    const result = await attractionsService.getPhotoAsset(attractionId, "thumbnail");
+
+    expect(photoCache.read).toHaveBeenCalledWith(attractionId, "thumbnail");
+    expect(googlePlacesClient.getPlaceDetails).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        type: "binary",
+        statusCode: 200,
+        contentType: "image/jpeg",
+      })
+    );
+    expect(result.body).toEqual(Buffer.from("cached-image"));
+  });
+
   test("getDetail includes shortLocation and a deduplicated photo gallery", async () => {
     const attractionId = "33333333-3333-4333-8333-333333333333";
     const destinationId = "22222222-2222-4222-8222-222222222222";
@@ -324,7 +374,7 @@ describe("attractions service", () => {
     });
   });
 
-  test("getPhotoAsset falls back to an inline placeholder when no Google photo can be resolved", async () => {
+  test("getPhotoAsset falls back to the destination hero image when no Google photo can be resolved", async () => {
     const attractionId = "33333333-3333-4333-8333-333333333333";
     const db = {
       Attraction: {
@@ -347,6 +397,7 @@ describe("attractions service", () => {
           id: "22222222-2222-4222-8222-222222222222",
           name: "Batam",
           countryName: "Indonesia",
+          heroImageUrl: "https://images.example.com/destinations/batam-hero.jpg",
         }),
       },
     };
@@ -365,12 +416,10 @@ describe("attractions service", () => {
     expect(googlePlacesClient.textSearch).toHaveBeenCalledTimes(1);
     expect(result).toEqual(
       expect.objectContaining({
-        type: "inline",
-        statusCode: 200,
-        contentType: "image/svg+xml; charset=utf-8",
+        type: "redirect",
+        statusCode: 302,
+        location: "https://images.example.com/destinations/batam-hero.jpg",
       })
     );
-    expect(String(result.body)).toContain("Pantai Nongsa");
-    expect(String(result.body)).toContain("<svg");
   });
 });

@@ -402,6 +402,10 @@ describe("controllers", () => {
         "Cache-Control",
         "private, no-store, max-age=0"
       );
+      expect(res.set).toHaveBeenCalledWith(
+        "Cross-Origin-Resource-Policy",
+        "cross-origin"
+      );
       expect(res.type).toHaveBeenCalledWith("image/jpeg");
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.send).toHaveBeenCalledWith(payload.body);

@@ -29,6 +29,8 @@ const getAttractionPhoto = asyncHandler(async (req, res) => {
     req.query.variant
   );
 
+  res.set("Cross-Origin-Resource-Policy", "cross-origin");
+
   if (asset.cacheControl) {
     res.set("Cache-Control", asset.cacheControl);
   }

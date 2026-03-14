@@ -87,7 +87,7 @@ const attractionsPaths = {
       tags: ["Attractions"],
       summary: "Get an attraction image",
       description:
-        "Returns an attraction image for the requested variant. If a curated/manual image URL exists it is used first; otherwise the backend attempts a Google Places photo lookup and falls back to a generated SVG placeholder when no match or photo is available.",
+        "Returns an attraction image for the requested variant. If a curated/manual image URL exists it is used first; otherwise the backend serves a cached photo when available, attempts a Google Places photo lookup, then falls back to the destination hero image before using a generated placeholder as the final fallback.",
       parameters: [
         parameterRef("IdOrSlugParam"),
         {
@@ -104,7 +104,7 @@ const attractionsPaths = {
       ],
       responses: {
         200: {
-          description: "Image bytes or SVG placeholder returned successfully.",
+          description: "Image bytes returned successfully.",
           content: {
             "image/jpeg": {
               schema: {
@@ -118,12 +118,10 @@ const attractionsPaths = {
                 format: "binary",
               },
             },
-            "image/svg+xml": {
-              schema: {
-                type: "string",
-              },
-            },
           },
+        },
+        302: {
+          description: "Redirect to a curated/manual image URL or destination hero image fallback.",
         },
         404: responseRef("NotFound"),
         422: responseRef("ValidationError"),

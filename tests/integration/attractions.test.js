@@ -439,24 +439,17 @@ describe("attractions integration", () => {
     });
   });
 
-  test("GET /api/attractions/:idOrSlug/photo falls back to an SVG placeholder when no match exists", async () => {
+  test("GET /api/attractions/:idOrSlug/photo falls back to the destination hero image when no match exists", async () => {
     const targetAttraction = seedData.attractions["tanah-lot"];
+    const destination = seedData.destinations.bali;
 
     jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([]);
 
     const response = await request(app)
       .get(`/api/attractions/${targetAttraction.id}/photo`)
       .query({ variant: "main" });
-    const responseText =
-      typeof response.text === "string" && response.text.length
-        ? response.text
-        : Buffer.isBuffer(response.body)
-          ? response.body.toString("utf8")
-          : "";
 
-    expect(response.status).toBe(200);
-    expect(response.headers["content-type"]).toContain("image/svg+xml");
-    expect(responseText).toContain("<svg");
-    expect(responseText).toContain(targetAttraction.name);
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe(destination.heroImageUrl);
   });
 });
