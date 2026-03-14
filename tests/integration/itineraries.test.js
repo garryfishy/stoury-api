@@ -141,6 +141,13 @@ describe("itineraries integration", () => {
             longitude: expect.any(String),
             fullAddress: expect.any(String),
             openingHours: expect.any(Object),
+            tripDayOpeningHours: expect.arrayContaining([
+              expect.objectContaining({
+                open: expect.stringMatching(/^\d{2}:\d{2}$/),
+                close: expect.stringMatching(/^\d{2}:\d{2}$/),
+              }),
+            ]),
+            tripDayIsOpen: expect.any(Boolean),
             thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
             mainImageUrl: expect.stringContaining("/api/attractions/"),
             enrichment: expect.any(Object),
@@ -184,7 +191,9 @@ describe("itineraries integration", () => {
           (item) =>
             item.estimatedBudgetMin === null &&
             item.estimatedBudgetMax === null &&
-            item.estimatedBudgetNote === null
+            item.estimatedBudgetNote === null &&
+            Array.isArray(item.attraction?.tripDayOpeningHours) &&
+            typeof item.attraction?.tripDayIsOpen === "boolean"
         )
       )
     ).toBe(true);

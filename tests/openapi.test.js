@@ -148,7 +148,12 @@ describe("OpenAPI document", () => {
       })
     );
     expect(document.components.schemas.ItineraryAttractionSummary.required).toEqual(
-      expect.arrayContaining(["openingHours", "primaryPreference"])
+      expect.arrayContaining([
+        "openingHours",
+        "tripDayOpeningHours",
+        "tripDayIsOpen",
+        "primaryPreference",
+      ])
     );
     expect(
       document.components.schemas.ItineraryAttractionSummary.properties.primaryPreference
@@ -157,6 +162,14 @@ describe("OpenAPI document", () => {
         $ref: "#/components/schemas/PrimaryPreferenceBucket",
       })
     );
+    expect(
+      document.components.schemas.ItineraryAttractionSummary.properties.tripDayOpeningHours
+    ).toEqual(
+      expect.objectContaining({
+        type: "array",
+      })
+    );
+    expect(document.components.schemas.TripDayOpeningWindow).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/itinerary"].put.description).toContain(
       "rough budget estimate guidance"
     );
@@ -205,6 +218,21 @@ describe("OpenAPI document", () => {
         estimatedBudgetMin: 0,
         estimatedBudgetMax: 25000,
         estimatedBudgetNote: expect.any(String),
+      })
+    );
+    expect(
+      document.paths["/api/trips/{tripId}/itinerary"].get.responses[200].content[
+        "application/json"
+      ].example.data.days[0].items[0].attraction
+    ).toEqual(
+      expect.objectContaining({
+        tripDayOpeningHours: expect.arrayContaining([
+          expect.objectContaining({
+            open: expect.any(String),
+            close: expect.any(String),
+          }),
+        ]),
+        tripDayIsOpen: true,
       })
     );
     expect(

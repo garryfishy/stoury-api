@@ -1210,6 +1210,20 @@ const components = {
         },
       },
     },
+    TripDayOpeningWindow: {
+      type: "object",
+      required: ["open", "close"],
+      properties: {
+        open: {
+          type: "string",
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$",
+        },
+        close: {
+          type: "string",
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$",
+        },
+      },
+    },
     ItineraryAttractionSummary: {
       type: "object",
       required: [
@@ -1222,6 +1236,8 @@ const components = {
         "longitude",
         "estimatedDurationMinutes",
         "openingHours",
+        "tripDayOpeningHours",
+        "tripDayIsOpen",
         "rating",
         "thumbnailImageUrl",
         "mainImageUrl",
@@ -1266,6 +1282,19 @@ const components = {
           type: "object",
           nullable: true,
           additionalProperties: true,
+        },
+        tripDayOpeningHours: {
+          type: "array",
+          description:
+            "Opening windows for the itinerary day's `date`, derived from the weekly attraction schedule.",
+          items: {
+            $ref: "#/components/schemas/TripDayOpeningWindow",
+          },
+        },
+        tripDayIsOpen: {
+          type: "boolean",
+          description:
+            "Whether the attraction has at least one opening window on the itinerary day.",
         },
         rating: {
           oneOf: [{ type: "number" }, { type: "string" }],
@@ -1725,6 +1754,8 @@ const components = {
         "longitude",
         "estimatedDurationMinutes",
         "openingHours",
+        "tripDayOpeningHours",
+        "tripDayIsOpen",
         "rating",
         "thumbnailImageUrl",
         "mainImageUrl",
@@ -1767,6 +1798,19 @@ const components = {
           type: "object",
           nullable: true,
           additionalProperties: true,
+        },
+        tripDayOpeningHours: {
+          type: "array",
+          description:
+            "Opening windows for the itinerary day's `date`, derived from the weekly attraction schedule.",
+          items: {
+            $ref: "#/components/schemas/TripDayOpeningWindow",
+          },
+        },
+        tripDayIsOpen: {
+          type: "boolean",
+          description:
+            "Whether the attraction has at least one opening window on the itinerary day.",
         },
         rating: {
           oneOf: [{ type: "number" }, { type: "string" }],

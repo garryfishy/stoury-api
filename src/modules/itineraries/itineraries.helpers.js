@@ -193,6 +193,12 @@ const serializeAttractionSummary = (record, categories = []) => ({
   categories: categories.map(serializeAttractionCategory),
 });
 
+const serializeTripDayOpeningHours = (openingHours, dateOnly) =>
+  getOpeningWindowsForDate(openingHours, dateOnly).map((window) => ({
+    open: minutesToTimeString(window.openMinutes),
+    close: minutesToTimeString(window.closeMinutes),
+  }));
+
 const normalizeStoredTime = (value) => {
   if (typeof value !== "string") {
     return value ?? null;
@@ -204,12 +210,19 @@ const normalizeStoredTime = (value) => {
 const buildItineraryItemPayload = (
   itemRecord,
   attractionsById,
-  categoriesByAttractionId
+  categoriesByAttractionId,
+  dateOnly
 ) => {
   const attractionId = readRecordValue(itemRecord, ["attractionId"]);
   const attraction = attractionsById.get(
     typeof attractionId === "string" ? attractionId.toLowerCase() : attractionId
   );
+  const tripDayOpeningHours = attraction
+    ? serializeTripDayOpeningHours(
+        readRecordValue(attraction, ["openingHours"], null),
+        dateOnly
+      )
+    : [];
 
   return {
     id: readRecordValue(itemRecord, ["id"]),
@@ -224,10 +237,14 @@ const buildItineraryItemPayload = (
     estimatedBudgetNote: readRecordValue(itemRecord, ["estimatedBudgetNote"], null),
     source: readRecordValue(itemRecord, ["source"], "manual"),
     attraction: attraction
-      ? serializeAttractionSummary(
-          attraction,
-          categoriesByAttractionId.get(attractionId) || []
-        )
+      ? {
+          ...serializeAttractionSummary(
+            attraction,
+            categoriesByAttractionId.get(attractionId) || []
+          ),
+          tripDayOpeningHours,
+          tripDayIsOpen: tripDayOpeningHours.length > 0,
+        }
       : null,
   };
 };
@@ -253,7 +270,12 @@ const buildItineraryPayload = ({
     date: readRecordValue(day, ["tripDate"], null),
     notes: readRecordValue(day, ["notes"], null),
     items: (itemsByDayId.get(readRecordValue(day, ["id"])) || []).map((item) =>
-      buildItineraryItemPayload(item, attractionsById, categoriesByAttractionId)
+      buildItineraryItemPayload(
+        item,
+        attractionsById,
+        categoriesByAttractionId,
+        readRecordValue(day, ["tripDate"], null)
+      )
     ),
   })),
 });
@@ -272,5 +294,6 @@ module.exports = {
   minutesToTimeString,
   normalizeStoredTime,
   serializeAttractionSummary,
+  serializeTripDayOpeningHours,
   timeStringToMinutes,
 };

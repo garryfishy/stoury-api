@@ -125,6 +125,10 @@ describe("itinerariesService", () => {
       `http://localhost:3000/api/attractions/${MUSEUM_ID}/photo?variant=main`
     );
     expect(fetched.days[0].items[0].attraction.openingHours).toEqual(alwaysOpen);
+    expect(fetched.days[0].items[0].attraction.tripDayOpeningHours).toEqual([
+      { open: "08:00", close: "18:00" },
+    ]);
+    expect(fetched.days[0].items[0].attraction.tripDayIsOpen).toBe(true);
     expect(fetched.days[0].items[0].attraction.primaryPreference).toEqual({
       slug: "popular",
       name: "Populer",

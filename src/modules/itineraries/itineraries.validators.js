@@ -78,6 +78,10 @@ const primaryPreferenceBucketSchema = z.object({
   slug: z.enum(["popular", "food", "shopping", "history"]),
   name: z.enum(["Populer", "Makanan", "Belanja", "Sejarah"]),
 });
+const openingWindowSchema = z.object({
+  open: timeSchema,
+  close: timeSchema,
+});
 
 const numericLikeSchema = z.union([z.number(), z.string()]);
 
@@ -91,6 +95,8 @@ const attractionSummaryResponseSchema = z.object({
   longitude: numericLikeSchema.nullable(),
   estimatedDurationMinutes: z.number().int().positive().nullable(),
   openingHours: z.record(z.string(), z.any()).nullable(),
+  tripDayOpeningHours: z.array(openingWindowSchema),
+  tripDayIsOpen: z.boolean(),
   rating: numericLikeSchema.nullable(),
   thumbnailImageUrl: z.string().nullable(),
   mainImageUrl: z.string().nullable(),
