@@ -1,5 +1,9 @@
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
+  normalizeOpeningHours,
+  WEEKDAY_KEYS,
+} = require("../../utils/opening-hours");
+const {
   ATTRACTION_PHOTO_VARIANTS,
   resolveAttractionImageUrl,
   serializeAttractionCategory,
@@ -10,16 +14,6 @@ const DEFAULT_DAY_START_MINUTES = 9 * 60;
 const DEFAULT_DAY_END_MINUTES = 18 * 60;
 const DEFAULT_ITEM_BUFFER_MINUTES = 30;
 const DEFAULT_MAX_ITEMS_PER_DAY = 4;
-
-const WEEKDAY_KEYS = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-];
 
 const padTimeNumber = (value) => String(value).padStart(2, "0");
 
@@ -80,17 +74,19 @@ const getWeekdayKey = (dateOnly) => {
 };
 
 const getOpeningWindowsForDate = (openingHours, dateOnly) => {
-  if (!openingHours || typeof openingHours !== "object") {
+  const normalizedOpeningHours = normalizeOpeningHours(openingHours);
+
+  if (!normalizedOpeningHours) {
     return [];
   }
 
   const weekdayKey = getWeekdayKey(dateOnly);
 
-  if (!weekdayKey || !Array.isArray(openingHours[weekdayKey])) {
+  if (!weekdayKey || !Array.isArray(normalizedOpeningHours[weekdayKey])) {
     return [];
   }
 
-  return openingHours[weekdayKey]
+  return normalizedOpeningHours[weekdayKey]
     .map((window) => ({
       openMinutes: timeStringToMinutes(window?.open),
       closeMinutes: timeStringToMinutes(window?.close),
@@ -178,7 +174,9 @@ const serializeAttractionSummary = (record, categories = []) => ({
     ["estimatedDurationMinutes"],
     null
   ),
-  openingHours: readRecordValue(record, ["openingHours"], null),
+  openingHours: normalizeOpeningHours(
+    readRecordValue(record, ["openingHours"], null)
+  ),
   rating: readRecordValue(record, ["rating"], null),
   thumbnailImageUrl: resolveAttractionImageUrl(
     record,

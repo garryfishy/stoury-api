@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const env = require("../../config/env");
 const { readRecordValue } = require("../../utils/model-helpers");
+const { normalizeOpeningHours } = require("../../utils/opening-hours");
 const { serializeDestination } = require("../destinations/destinations.helpers");
 const {
   getPreferenceBucketForCategorySlugs,
@@ -151,7 +152,9 @@ const serializeAttraction = (record, options = {}) => {
     latitude: readRecordValue(record, ["latitude"], null),
     longitude: readRecordValue(record, ["longitude"], null),
     estimatedDurationMinutes: readRecordValue(record, ["estimatedDurationMinutes"], null),
-    openingHours: readRecordValue(record, ["openingHours"], null),
+    openingHours: normalizeOpeningHours(
+      readRecordValue(record, ["openingHours"], null)
+    ),
     rating: readRecordValue(record, ["rating"], null),
     thumbnailImageUrl: resolveAttractionImageUrl(
       record,

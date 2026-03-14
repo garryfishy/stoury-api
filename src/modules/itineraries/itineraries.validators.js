@@ -82,6 +82,17 @@ const openingWindowSchema = z.object({
   open: timeSchema,
   close: timeSchema,
 });
+const openingHoursResponseSchema = z
+  .object({
+    sunday: z.array(openingWindowSchema),
+    monday: z.array(openingWindowSchema),
+    tuesday: z.array(openingWindowSchema),
+    wednesday: z.array(openingWindowSchema),
+    thursday: z.array(openingWindowSchema),
+    friday: z.array(openingWindowSchema),
+    saturday: z.array(openingWindowSchema),
+  })
+  .nullable();
 
 const numericLikeSchema = z.union([z.number(), z.string()]);
 
@@ -94,7 +105,7 @@ const attractionSummaryResponseSchema = z.object({
   latitude: numericLikeSchema.nullable(),
   longitude: numericLikeSchema.nullable(),
   estimatedDurationMinutes: z.number().int().positive().nullable(),
-  openingHours: z.record(z.string(), z.any()).nullable(),
+  openingHours: openingHoursResponseSchema,
   tripDayOpeningHours: z.array(openingWindowSchema),
   tripDayIsOpen: z.boolean(),
   rating: numericLikeSchema.nullable(),

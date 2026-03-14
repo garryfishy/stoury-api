@@ -38,6 +38,16 @@ const eveningOpen = {
   sunday: [{ open: "10:00", close: "22:00" }],
 };
 
+const legacyAlwaysOpen = {
+  sunday: ["08:00 - 18:00"],
+  monday: ["08:00 - 18:00"],
+  tuesday: ["08:00 - 18:00"],
+  wednesday: ["08:00 - 18:00"],
+  thursday: ["08:00 - 18:00"],
+  friday: ["08:00 - 18:00"],
+  saturday: ["08:00 - 18:00"],
+};
+
 const baseAttractions = [
   {
     id: TEMPLE_ATTRACTION_ID,
@@ -257,6 +267,23 @@ describe("aiPlanningService", () => {
       })
     );
     expect(preview.days[0].isPartial).toBe(false);
+  });
+
+  test("normalizes legacy string opening-hours ranges in AI preview responses", async () => {
+    const service = createService({
+      attractionsOverride: baseAttractions.map((attraction) => ({
+        ...attraction,
+        openingHours: legacyAlwaysOpen,
+      })),
+    });
+
+    const preview = await service.generatePreview(USER_ID, TRIP_ID);
+
+    expect(preview.days[0].items[0].attraction.openingHours).toEqual(alwaysOpen);
+    expect(preview.days[0].items[0].attraction.tripDayOpeningHours).toEqual([
+      { open: "08:00", close: "18:00" },
+    ]);
+    expect(preview.days[0].items[0].attraction.tripDayIsOpen).toBe(true);
   });
 
   test("passes trip budget into provider input", async () => {

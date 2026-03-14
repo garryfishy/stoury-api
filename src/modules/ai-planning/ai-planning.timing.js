@@ -1,4 +1,5 @@
 const { readRecordValue } = require("../../utils/model-helpers");
+const { normalizeOpeningHours, WEEKDAY_KEYS } = require("../../utils/opening-hours");
 const {
   minutesToTimeString,
   timeStringToMinutes,
@@ -17,16 +18,6 @@ const VALID_BEST_VISIT_TIMES = new Set([
   "night",
   "full_day",
 ]);
-const WEEKDAY_KEYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-];
-
 const TIME_PROFILES = {
   sunrise: {
     preferredStartMinutes: 6 * 60,
@@ -202,10 +193,11 @@ const getCandidateBestVisitTime = (candidate) => {
 };
 
 const getCandidateOpeningHoursHint = (candidate) => {
-  const openingHours =
-    readRecordValue(candidate?.attraction || candidate, ["openingHours"], {}) || {};
+  const openingHours = normalizeOpeningHours(
+    readRecordValue(candidate?.attraction || candidate, ["openingHours"], {}) || {}
+  );
 
-  if (!openingHours || typeof openingHours !== "object") {
+  if (!openingHours) {
     return null;
   }
 

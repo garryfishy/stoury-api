@@ -492,8 +492,8 @@ const components = {
           nullable: true,
         },
         openingHours: {
-          type: "object",
-          additionalProperties: true,
+          allOf: [{ $ref: "#/components/schemas/OpeningHoursByWeekday" }],
+          nullable: true,
         },
         rating: {
           oneOf: [{ type: "number" }, { type: "string" }],
@@ -1224,6 +1224,50 @@ const components = {
         },
       },
     },
+    OpeningHoursByWeekday: {
+      type: "object",
+      required: [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ],
+      properties: {
+        sunday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        monday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        tuesday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        wednesday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        thursday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        friday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+        saturday: {
+          type: "array",
+          items: { $ref: "#/components/schemas/TripDayOpeningWindow" },
+        },
+      },
+      description:
+        "Weekly opening hours normalized to object windows. Legacy string ranges are normalized before responses are returned.",
+    },
     ItineraryAttractionSummary: {
       type: "object",
       required: [
@@ -1279,9 +1323,8 @@ const components = {
           nullable: true,
         },
         openingHours: {
-          type: "object",
+          allOf: [{ $ref: "#/components/schemas/OpeningHoursByWeekday" }],
           nullable: true,
-          additionalProperties: true,
         },
         tripDayOpeningHours: {
           type: "array",
@@ -1795,9 +1838,8 @@ const components = {
           nullable: true,
         },
         openingHours: {
-          type: "object",
+          allOf: [{ $ref: "#/components/schemas/OpeningHoursByWeekday" }],
           nullable: true,
-          additionalProperties: true,
         },
         tripDayOpeningHours: {
           type: "array",

@@ -19,7 +19,53 @@ const alwaysOpen = {
   sunday: [{ open: "08:00", close: "18:00" }],
 };
 
-const createService = () => {
+const legacyAlwaysOpen = {
+  sunday: ["08:00 - 18:00"],
+  monday: ["08:00 - 18:00"],
+  tuesday: ["08:00 - 18:00"],
+  wednesday: ["08:00 - 18:00"],
+  thursday: ["08:00 - 18:00"],
+  friday: ["08:00 - 18:00"],
+  saturday: ["08:00 - 18:00"],
+};
+
+const createService = ({ attractionsOverride } = {}) => {
+  const attractions = attractionsOverride || [
+    {
+      id: MUSEUM_ID,
+      destinationId: DESTINATION_ID,
+      name: "City Museum",
+      slug: "city-museum",
+      estimatedDurationMinutes: 120,
+      rating: 4.6,
+      openingHours: alwaysOpen,
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    },
+    {
+      id: MARKET_ID,
+      destinationId: DESTINATION_ID,
+      name: "Night Market",
+      slug: "night-market",
+      estimatedDurationMinutes: 90,
+      rating: 4.4,
+      openingHours: alwaysOpen,
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    },
+    {
+      id: OTHER_DESTINATION_ATTRACTION_ID,
+      destinationId: OTHER_DESTINATION_ID,
+      name: "Other Destination Attraction",
+      slug: "other-destination-attraction",
+      estimatedDurationMinutes: 60,
+      rating: 4.0,
+      openingHours: alwaysOpen,
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    },
+  ];
+
   const db = createMockDb({
     trips: [
       {
@@ -31,41 +77,7 @@ const createService = () => {
         endDate: "2026-05-12",
       },
     ],
-    attractions: [
-      {
-        id: MUSEUM_ID,
-        destinationId: DESTINATION_ID,
-        name: "City Museum",
-        slug: "city-museum",
-        estimatedDurationMinutes: 120,
-        rating: 4.6,
-        openingHours: alwaysOpen,
-        thumbnailImageUrl: null,
-        mainImageUrl: null,
-      },
-      {
-        id: MARKET_ID,
-        destinationId: DESTINATION_ID,
-        name: "Night Market",
-        slug: "night-market",
-        estimatedDurationMinutes: 90,
-        rating: 4.4,
-        openingHours: alwaysOpen,
-        thumbnailImageUrl: null,
-        mainImageUrl: null,
-      },
-      {
-        id: OTHER_DESTINATION_ATTRACTION_ID,
-        destinationId: OTHER_DESTINATION_ID,
-        name: "Other Destination Attraction",
-        slug: "other-destination-attraction",
-        estimatedDurationMinutes: 60,
-        rating: 4.0,
-        openingHours: alwaysOpen,
-        thumbnailImageUrl: null,
-        mainImageUrl: null,
-      },
-    ],
+    attractions,
   });
 
   return {
@@ -133,6 +145,45 @@ describe("itinerariesService", () => {
       slug: "popular",
       name: "Populer",
     });
+  });
+
+  test("normalizes legacy string opening-hours ranges in itinerary responses", async () => {
+    const { service } = createService({
+      attractionsOverride: [
+        {
+          id: MUSEUM_ID,
+          destinationId: DESTINATION_ID,
+          name: "City Museum",
+          slug: "city-museum",
+          estimatedDurationMinutes: 120,
+          rating: 4.6,
+          openingHours: legacyAlwaysOpen,
+          thumbnailImageUrl: null,
+          mainImageUrl: null,
+        },
+      ],
+    });
+
+    const saved = await service.saveTripItinerary(USER_ID, TRIP_ID, {
+      days: [
+        {
+          dayNumber: 1,
+          date: "2026-05-10",
+          items: [
+            {
+              attractionId: MUSEUM_ID,
+              startTime: "09:00",
+              endTime: "11:00",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(saved.days[0].items[0].attraction.openingHours).toEqual(alwaysOpen);
+    expect(saved.days[0].items[0].attraction.tripDayOpeningHours).toEqual([
+      { open: "08:00", close: "18:00" },
+    ]);
   });
 
   test("rejects duplicate attractions anywhere in the trip payload", async () => {
