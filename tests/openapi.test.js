@@ -25,6 +25,7 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/auth/register"]).toBeDefined();
     expect(document.paths["/api/preferences"]).toBeDefined();
     expect(document.paths["/api/dashboard/home"]).toBeDefined();
+    expect(document.paths["/api/dashboard/search"]).toBeDefined();
     expect(document.paths["/api/attractions/{idOrSlug}/photo"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}"]).toBeDefined();
     expect(document.paths["/api/trips/{tripId}/itinerary"]).toBeDefined();
@@ -83,13 +84,25 @@ describe("OpenAPI document", () => {
       ])
     );
     expect(document.paths["/api/dashboard/home"].get.description).toContain(
-      "Batam-first"
+      "all active destinations"
+    );
+    expect(document.paths["/api/dashboard/search"].get.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          $ref: "#/components/parameters/AttractionSearchQuery",
+        }),
+      ])
     );
     expect(document.components.schemas.DashboardHomeCard.properties.badge.enum).toEqual(
       expect.arrayContaining(["Populer", "Makanan", "Belanja", "Sejarah"])
     );
     expect(document.components.schemas.DashboardHomeCard.properties.badgeKey.enum).toEqual(
       expect.arrayContaining(["popular", "food", "shopping", "history"])
+    );
+    expect(document.components.schemas.DashboardHomeCard.properties.destination).toEqual(
+      expect.objectContaining({
+        type: "object",
+      })
     );
     expect(document.components.schemas.PreferenceCategory.properties.name.description).toContain(
       "Populer"
@@ -264,6 +277,31 @@ describe("OpenAPI document", () => {
         "Itineraries",
         "Admin Attractions",
       ])
+    );
+    expect(document.components.schemas.DashboardHomeResponse.required).toEqual(
+      expect.arrayContaining(["featured", "meta"])
+    );
+    expect(
+      document.paths["/api/dashboard/home"].get.responses[200].content["application/json"]
+        .example.data
+    ).toEqual(
+      expect.objectContaining({
+        featured: expect.arrayContaining([
+          expect.objectContaining({
+            destination: expect.objectContaining({
+              slug: expect.any(String),
+            }),
+          }),
+        ]),
+      })
+    );
+    expect(
+      document.paths["/api/dashboard/search"].get.responses[200].content["application/json"]
+        .schema.properties.meta
+    ).toEqual(
+      expect.objectContaining({
+        $ref: "#/components/schemas/PaginationMeta",
+      })
     );
     expect(document.tags.find((tag) => tag.name === "AI Planning")).toEqual(
       expect.objectContaining({

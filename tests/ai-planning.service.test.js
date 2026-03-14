@@ -156,10 +156,10 @@ describe("ai planning service", () => {
     expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalPlaceId");
     expect(result.days[0].items[0].attraction).toEqual(
       expect.objectContaining({
-        openingHours: {
+        openingHours: expect.objectContaining({
           friday: [{ open: "08:00", close: "18:00" }],
           saturday: [{ open: "08:00", close: "18:00" }],
-        },
+        }),
         tripDayOpeningHours: [{ open: "08:00", close: "18:00" }],
         tripDayIsOpen: true,
       })

@@ -42,7 +42,7 @@ const baseTags = [
   },
   {
     name: "Dashboard",
-    description: "Public Batam-first mobile dashboard endpoints.",
+    description: "Public global mobile dashboard and search endpoints.",
   },
   {
     name: "Attractions",

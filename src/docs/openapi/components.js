@@ -626,6 +626,7 @@ const components = {
         "rating",
         "badge",
         "badgeKey",
+        "destination",
       ],
       properties: {
         id: {
@@ -661,22 +662,29 @@ const components = {
           description: "Stable internal badge key for styling or client-side logic.",
           enum: ["popular", "food", "shopping", "history"],
         },
+        destination: {
+          type: "object",
+          required: ["id", "slug", "name"],
+          properties: {
+            id: {
+              type: "string",
+              format: "uuid",
+            },
+            slug: {
+              type: "string",
+            },
+            name: {
+              type: "string",
+            },
+          },
+        },
       },
     },
     DashboardHomeResponse: {
       type: "object",
-      required: ["destination", "featured", "exploreMore", "meta"],
+      required: ["featured", "meta"],
       properties: {
-        destination: {
-          $ref: "#/components/schemas/Destination",
-        },
         featured: {
-          type: "array",
-          items: {
-            $ref: "#/components/schemas/DashboardHomeCard",
-          },
-        },
-        exploreMore: {
           type: "array",
           items: {
             $ref: "#/components/schemas/DashboardHomeCard",
@@ -684,19 +692,35 @@ const components = {
         },
         meta: {
           type: "object",
-          required: ["defaultDestinationSlug", "featuredCount", "exploreMoreCount"],
+          required: ["featuredCount", "candidatePoolSize", "totalActiveAttractionCount"],
           properties: {
-            defaultDestinationSlug: {
-              type: "string",
-            },
             featuredCount: {
               type: "integer",
               minimum: 0,
             },
-            exploreMoreCount: {
+            candidatePoolSize: {
               type: "integer",
               minimum: 0,
             },
+            totalActiveAttractionCount: {
+              type: "integer",
+              minimum: 0,
+            },
+          },
+        },
+      },
+    },
+    DashboardSearchResponse: {
+      type: "object",
+      required: ["query", "items"],
+      properties: {
+        query: {
+          type: "string",
+        },
+        items: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/DashboardHomeCard",
           },
         },
       },

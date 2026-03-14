@@ -1,9 +1,8 @@
 const {
-  DASHBOARD_EXPLORE_MORE_LIMIT,
   DASHBOARD_FEATURED_LIMIT,
+  DASHBOARD_FEATURED_POOL_LIMIT,
 } = require("../../config/dashboard");
 const { readRecordValue } = require("../../utils/model-helpers");
-const { serializeDestination } = require("../destinations/destinations.helpers");
 const {
   ATTRACTION_PHOTO_VARIANTS,
   deriveShortLocation,
@@ -66,6 +65,12 @@ const getPopularityScore = (record) => {
   return Math.log10(externalReviewCount + 1) * 100 + rating * 20;
 };
 
+const serializeDashboardDestinationSummary = (destination) => ({
+  id: readRecordValue(destination, ["id"]),
+  slug: readRecordValue(destination, ["slug"], ""),
+  name: readRecordValue(destination, ["name"], ""),
+});
+
 const serializeDashboardCard = (record, { destination, categories = [] } = {}) => {
   const badgeKey = getDashboardBadgeKey(categories);
 
@@ -81,6 +86,7 @@ const serializeDashboardCard = (record, { destination, categories = [] } = {}) =
     rating: getDisplayRating(record),
     badge: getPreferenceDisplayName(badgeKey, badgeKey),
     badgeKey,
+    destination: serializeDashboardDestinationSummary(destination),
   };
 };
 
@@ -93,29 +99,37 @@ const sortDashboardAttractions = (items = []) =>
     return String(left.name).localeCompare(String(right.name));
   });
 
-const buildDashboardHomePayload = ({
-  destination,
-  items = [],
-  defaultDestinationSlug = null,
-}) => {
+const selectRandomDashboardCards = (
+  sortedItems = [],
+  {
+    featuredLimit = DASHBOARD_FEATURED_LIMIT,
+    poolLimit = DASHBOARD_FEATURED_POOL_LIMIT,
+    randomFn = Math.random,
+  } = {}
+) => {
+  const pool = sortedItems.slice(0, poolLimit);
+  const shuffled = [...pool];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(randomFn() * (index + 1));
+    const current = shuffled[index];
+    shuffled[index] = shuffled[swapIndex];
+    shuffled[swapIndex] = current;
+  }
+
+  return shuffled.slice(0, featuredLimit);
+};
+
+const buildDashboardHomePayload = ({ items = [], randomFn = Math.random } = {}) => {
   const sortedItems = sortDashboardAttractions(items);
+  const featured = selectRandomDashboardCards(sortedItems, { randomFn });
 
   return {
-    destination: serializeDestination(destination),
-    featured: sortedItems.slice(0, DASHBOARD_FEATURED_LIMIT).map((item) => item.card),
-    exploreMore: sortedItems
-      .slice(DASHBOARD_FEATURED_LIMIT, DASHBOARD_FEATURED_LIMIT + DASHBOARD_EXPLORE_MORE_LIMIT)
-      .map((item) => item.card),
+    featured: featured.map((item) => item.card),
     meta: {
-      defaultDestinationSlug,
-      featuredCount: Math.min(sortedItems.length, DASHBOARD_FEATURED_LIMIT),
-      exploreMoreCount: Math.max(
-        Math.min(
-          sortedItems.length - DASHBOARD_FEATURED_LIMIT,
-          DASHBOARD_EXPLORE_MORE_LIMIT
-        ),
-        0
-      ),
+      featuredCount: featured.length,
+      candidatePoolSize: Math.min(sortedItems.length, DASHBOARD_FEATURED_POOL_LIMIT),
+      totalActiveAttractionCount: sortedItems.length,
     },
   };
 };
@@ -130,5 +144,7 @@ module.exports = {
   getDisplayRating,
   getPopularityScore,
   serializeDashboardCard,
+  serializeDashboardDestinationSummary,
+  selectRandomDashboardCards,
   sortDashboardAttractions,
 };

@@ -11,6 +11,20 @@ const getDashboardHome = asyncHandler(async (_req, res) => {
   });
 });
 
+const searchDashboardAttractions = asyncHandler(async (req, res) => {
+  const data = await dashboardService.searchAttractions(req.query);
+
+  return sendSuccess(res, {
+    message: "Dashboard attractions fetched.",
+    data: {
+      items: data.items,
+      query: data.query,
+    },
+    meta: data.pagination,
+  });
+});
+
 module.exports = {
   getDashboardHome,
+  searchDashboardAttractions,
 };

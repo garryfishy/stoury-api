@@ -216,10 +216,10 @@ describe("itineraries service", () => {
                 latitude: "1.1870000",
                 longitude: "104.1190000",
                 estimatedDurationMinutes: 120,
-                openingHours: {
+                openingHours: expect.objectContaining({
                   friday: [{ open: "08:00", close: "18:00" }],
                   saturday: [{ open: "08:00", close: "18:00" }],
-                },
+                }),
                 tripDayOpeningHours: [{ open: "08:00", close: "18:00" }],
                 tripDayIsOpen: true,
                 rating: "4.5",

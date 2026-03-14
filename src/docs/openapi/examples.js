@@ -116,10 +116,14 @@ const dashboardHomeCard = {
   rating: 4.5,
   badge: "Populer",
   badgeKey: "popular",
+  destination: {
+    id: destination.id,
+    slug: destination.slug,
+    name: destination.name,
+  },
 };
 
 const dashboardHome = {
-  destination,
   featured: [
     dashboardHomeCard,
     {
@@ -131,25 +135,40 @@ const dashboardHome = {
       rating: 4.7,
       badge: "Makanan",
       badgeKey: "food",
-    },
-  ],
-  exploreMore: [
-    {
-      id: ids.thirdAttractionId,
-      slug: "barelang-bridge",
-      name: "Barelang Bridge",
-      shortLocation: "Sagulung, Batam",
-      thumbnailImageUrl: null,
-      rating: 4.6,
-      badge: "Sejarah",
-      badgeKey: "history",
+      destination: {
+        id: destination.id,
+        slug: destination.slug,
+        name: destination.name,
+      },
     },
   ],
   meta: {
-    defaultDestinationSlug: "batam",
     featuredCount: 2,
-    exploreMoreCount: 1,
+    candidatePoolSize: 12,
+    totalActiveAttractionCount: 48,
   },
+};
+
+const dashboardSearchResults = {
+  query: "batam",
+  items: [
+    dashboardHomeCard,
+    {
+      id: ids.thirdAttractionId,
+      slug: "malioboro-street",
+      name: "Malioboro Street",
+      shortLocation: "Malioboro, Yogyakarta",
+      thumbnailImageUrl: "https://images.example.com/attractions/malioboro-thumb.jpg",
+      rating: 4.6,
+      badge: "Belanja",
+      badgeKey: "shopping",
+      destination: {
+        id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        slug: "yogyakarta",
+        name: "Yogyakarta",
+      },
+    },
+  ],
 };
 
 const itineraryAttractionSummary = {
@@ -643,6 +662,7 @@ module.exports = {
   aiPlanningPreview,
   dashboardHome,
   dashboardHomeCard,
+  dashboardSearchResults,
   destination,
   ids,
   itineraryAttractionSummary,
