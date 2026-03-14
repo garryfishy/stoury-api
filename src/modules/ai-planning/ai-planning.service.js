@@ -14,6 +14,7 @@ const {
   getDateOnlyForTripDay,
   minutesToTimeString,
   serializeAttractionSummary,
+  serializeTripDayOpeningHours,
 } = require("../itineraries/itineraries.helpers");
 const {
   estimateItineraryItemBudget,
@@ -290,6 +291,10 @@ const createAiPlanningService = ({
           categories: selectedCandidate.categories,
           durationMinutes: selectedCandidate.durationMinutes,
         });
+        const tripDayOpeningHours = serializeTripDayOpeningHours(
+          readRecordValue(selectedCandidate.attraction, ["openingHours"], null),
+          date
+        );
 
         items.push({
           attractionId: selectedCandidate.attractionId,
@@ -306,10 +311,14 @@ const createAiPlanningService = ({
           estimatedBudgetMax: budgetEstimate.estimatedBudgetMax,
           estimatedBudgetNote: budgetEstimate.estimatedBudgetNote,
           source: "ai_assisted",
-          attraction: serializeAttractionSummary(
-            selectedCandidate.attraction,
-            selectedCandidate.categories
-          ),
+          attraction: {
+            ...serializeAttractionSummary(
+              selectedCandidate.attraction,
+              selectedCandidate.categories
+            ),
+            tripDayOpeningHours,
+            tripDayIsOpen: tripDayOpeningHours.length > 0,
+          },
         });
 
         desiredStartMinutes =

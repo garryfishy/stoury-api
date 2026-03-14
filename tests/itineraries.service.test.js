@@ -220,6 +220,8 @@ describe("itineraries service", () => {
                   friday: [{ open: "08:00", close: "18:00" }],
                   saturday: [{ open: "08:00", close: "18:00" }],
                 },
+                tripDayOpeningHours: [{ open: "08:00", close: "18:00" }],
+                tripDayIsOpen: true,
                 rating: "4.5",
                 thumbnailImageUrl:
                   "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",

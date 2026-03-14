@@ -154,6 +154,16 @@ describe("ai planning service", () => {
     });
     expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalSource");
     expect(result.days[0].items[0].attraction.enrichment).toHaveProperty("externalPlaceId");
+    expect(result.days[0].items[0].attraction).toEqual(
+      expect.objectContaining({
+        openingHours: {
+          friday: [{ open: "08:00", close: "18:00" }],
+          saturday: [{ open: "08:00", close: "18:00" }],
+        },
+        tripDayOpeningHours: [{ open: "08:00", close: "18:00" }],
+        tripDayIsOpen: true,
+      })
+    );
     expect(result.strategy).toEqual({
       mode: "deterministic_only",
       provider: "deterministic",

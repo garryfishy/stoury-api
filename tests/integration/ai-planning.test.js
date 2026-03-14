@@ -131,6 +131,8 @@ describe("ai planning integration", () => {
               longitude: expect.any(String),
               fullAddress: expect.any(String),
               openingHours: expect.any(Object),
+              tripDayOpeningHours: expect.any(Array),
+              tripDayIsOpen: expect.any(Boolean),
               thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
               mainImageUrl: expect.stringContaining("/api/attractions/"),
               enrichment: expect.any(Object),
@@ -144,6 +146,17 @@ describe("ai planning integration", () => {
         );
         expect(item.attraction.enrichment).toHaveProperty("externalSource");
         expect(item.attraction.enrichment).toHaveProperty("externalPlaceId");
+        expect(item.attraction.tripDayOpeningHours).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              open: expect.stringMatching(/^\d{2}:\d{2}$/),
+              close: expect.stringMatching(/^\d{2}:\d{2}$/),
+            }),
+          ])
+        );
+        expect(item.attraction.tripDayIsOpen).toBe(
+          item.attraction.tripDayOpeningHours.length > 0
+        );
         expect(item.estimatedBudgetMin).toBeGreaterThanOrEqual(0);
         expect(item.estimatedBudgetMax).toBeGreaterThanOrEqual(
           item.estimatedBudgetMin

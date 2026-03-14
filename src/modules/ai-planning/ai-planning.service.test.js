@@ -249,6 +249,13 @@ describe("aiPlanningService", () => {
           "Heuristic only: allows for common entry, donation, or parking-style spend.",
       })
     );
+    expect(preview.days[0].items[0].attraction).toEqual(
+      expect.objectContaining({
+        openingHours: alwaysOpen,
+        tripDayOpeningHours: [{ open: "08:00", close: "18:00" }],
+        tripDayIsOpen: true,
+      })
+    );
     expect(preview.days[0].isPartial).toBe(false);
   });
 
