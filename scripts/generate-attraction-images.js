@@ -18,6 +18,11 @@ const parseArgs = (argv) => {
       "generated",
       "attraction-images.json"
     ),
+    overridesPath: path.join(
+      process.cwd(),
+      "scripts",
+      "attraction-image-overrides.json"
+    ),
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -50,6 +55,12 @@ const parseArgs = (argv) => {
 
     if (token === "--manifest" && argv[index + 1]) {
       options.manifestPath = path.resolve(String(argv[index + 1]).trim());
+      index += 1;
+      continue;
+    }
+
+    if (token === "--overrides" && argv[index + 1]) {
+      options.overridesPath = path.resolve(String(argv[index + 1]).trim());
       index += 1;
       continue;
     }
@@ -110,6 +121,65 @@ const stripHtml = (value) =>
     .trim();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const normalizeOverride = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return {
+      query: value,
+    };
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  return {
+    directImageUrl:
+      typeof value.directImageUrl === "string" && value.directImageUrl.trim().length
+        ? value.directImageUrl.trim()
+        : null,
+    fileTitle:
+      typeof value.fileTitle === "string" && value.fileTitle.trim().length
+        ? value.fileTitle.trim()
+        : null,
+    query:
+      typeof value.query === "string" && value.query.trim().length
+        ? value.query.trim()
+        : null,
+    skip: value.skip === true,
+    sourcePageUrl:
+      typeof value.sourcePageUrl === "string" && value.sourcePageUrl.trim().length
+        ? value.sourcePageUrl.trim()
+        : null,
+  };
+};
+
+const loadOverrides = async (overridesPath) => {
+  try {
+    const raw = await fs.readFile(overridesPath, "utf8");
+    const payload = JSON.parse(raw);
+
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return new Map();
+    }
+
+    return new Map(
+      Object.entries(payload)
+        .map(([slug, value]) => [slugify(slug), normalizeOverride(value)])
+        .filter(([, value]) => value)
+    );
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return new Map();
+    }
+
+    throw new Error(`Unable to load overrides from ${overridesPath}: ${error.message}`);
+  }
+};
 
 const buildAssetRelativePath = (destinationSlug, attractionSlug, variant, extension) =>
   path.join(
@@ -321,6 +391,7 @@ const main = async () => {
   const db = getDb();
 
   try {
+    const overrides = await loadOverrides(options.overridesPath);
     const dbAttractions = await db.Attraction.findAll({
       where: {
         isActive: true,
@@ -394,7 +465,9 @@ const main = async () => {
       const attractionSlug = slugify(readRecordValue(attraction, ["slug"], attractionName));
       const destinationName = readRecordValue(destination, ["name"], "Destination");
       const destinationSlug = slugify(readRecordValue(destination, ["slug"], destinationName));
-      const query = `${attractionName} ${destinationName} Indonesia`;
+      const attractionOverride = overrides.get(attractionSlug) || null;
+      const query =
+        attractionOverride?.query || `${attractionName} ${destinationName} Indonesia`;
       const item = {
         id: readRecordValue(attraction, ["id"]),
         slug: readRecordValue(attraction, ["slug"], attractionSlug),
@@ -405,16 +478,52 @@ const main = async () => {
       };
 
       try {
-        const fileTitle = await searchCommonsFile(query);
+        if (attractionOverride?.skip) {
+          item.error = "Skipped by override";
+          item.overrideApplied = true;
+          item.overrideType = "skip";
+          results.push(item);
+          console.log(`MISS ${destinationSlug} / ${attractionSlug}: skipped by override`);
+          await sleep(REQUEST_DELAY_MS);
+          continue;
+        }
 
-        if (!fileTitle) {
+        item.overrideApplied = Boolean(attractionOverride);
+
+        let fileInfo = null;
+        let fileTitle = attractionOverride?.fileTitle || null;
+
+        if (attractionOverride?.directImageUrl) {
+          item.overrideType = "directImageUrl";
+          fileInfo = {
+            sourcePageUrl: attractionOverride.sourcePageUrl || attractionOverride.directImageUrl,
+            directImageUrl: attractionOverride.directImageUrl,
+            mimeType: null,
+            licenseLabel: null,
+            licenseUrl: null,
+            authorName: null,
+            credit: null,
+            attributionRequired: false,
+          };
+        } else {
+          if (!fileTitle) {
+            fileTitle = await searchCommonsFile(query);
+            item.overrideType = attractionOverride?.query ? "query" : "auto";
+          } else {
+            item.overrideType = "fileTitle";
+          }
+        }
+
+        if (!fileInfo && !fileTitle) {
           item.error = "No Wikimedia Commons file found";
           results.push(item);
           console.log(`MISS ${destinationSlug} / ${attractionSlug}: no file found`);
           continue;
         }
 
-        const fileInfo = await getDirectFileInfo(fileTitle);
+        if (!fileInfo) {
+          fileInfo = await getDirectFileInfo(fileTitle);
+        }
 
         if (!fileInfo?.directImageUrl) {
           item.error = "Found file title but could not resolve direct image URL";
@@ -519,6 +628,7 @@ const main = async () => {
           env: options.env,
           failed: results.filter((item) => item.error).length,
           manifestPath: options.manifestPath,
+          overridesPath: options.overridesPath,
           provider: ASSET_PROVIDER,
           strategy: ASSET_STRATEGY,
           succeeded: results.filter((item) => item.directImageUrl).length,
