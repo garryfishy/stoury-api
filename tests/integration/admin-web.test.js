@@ -1,3 +1,5 @@
+const fs = require("fs/promises");
+const path = require("path");
 const request = require("supertest");
 const { app } = require("./helpers/app");
 const { googlePlacesClient } = require("../../src/services/google-places");
@@ -20,18 +22,31 @@ const createAdminUser = async (label) => {
   return auth;
 };
 
+const UPLOAD_ROOT = path.join(process.cwd(), "src", "public", "attractions", "uploads");
+const SAMPLE_PNG_BUFFER = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9p4nHC8AAAAASUVORK5CYII=",
+  "base64"
+);
+
+const cleanupUploadedAssets = async () => {
+  await fs.rm(UPLOAD_ROOT, { force: true, recursive: true });
+};
+
 beforeAll(async () => {
   await ensureTestDbReady();
   await cleanupTestArtifacts();
+  await cleanupUploadedAssets();
 });
 
 afterEach(async () => {
   jest.restoreAllMocks();
   await cleanupTestArtifacts();
+  await cleanupUploadedAssets();
 });
 
 afterAll(async () => {
   await cleanupTestArtifacts();
+  await cleanupUploadedAssets();
   await closeTestDb();
 });
 
@@ -137,6 +152,30 @@ describe("admin web integration", () => {
     expect(response.text).toContain("Enable destinations and run enrichment");
     expect(response.text).toContain("Enrich missing");
     expect(response.text).toContain("Backfill photos");
+  });
+
+  test("admin users can open the attraction assets page and filter by image state", async () => {
+    const admin = await createAdminUser("admin-web-assets");
+    const agent = request.agent(app);
+
+    await agent
+      .post("/admin/login")
+      .type("form")
+      .send({
+        email: admin.email,
+        password: admin.password,
+      });
+
+    const response = await agent.get("/admin/attraction-assets").query({
+      imageState: "without_image",
+      destinationId: "",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.text).toContain('data-page="admin-attraction-assets"');
+    expect(response.text).toContain("Upload local images for attractions");
+    expect(response.text).toContain("Without image");
   });
 
   test("admin users can open the pending enrichment page shell", async () => {
@@ -294,5 +333,70 @@ describe("admin web integration", () => {
     expect(refreshed.isActive).toBe(true);
 
     await refreshed.update({ isActive: false });
+  });
+
+  test("admin users can upload local attraction assets and persist DB-backed URLs", async () => {
+    const admin = await createAdminUser("admin-web-upload");
+    const agent = request.agent(app);
+    const attraction = await db.Attraction.findOne({
+      where: {
+        slug: "barelang-bridge",
+      },
+    });
+
+    expect(attraction).toBeTruthy();
+
+    const originalValues = {
+      mainImageUrl: attraction.mainImageUrl,
+      thumbnailImageUrl: attraction.thumbnailImageUrl,
+      metadata: attraction.metadata,
+    };
+
+    await agent
+      .post("/admin/login")
+      .type("form")
+      .send({
+        email: admin.email,
+        password: admin.password,
+      });
+
+    const response = await agent
+      .post(`/admin/attraction-assets/${attraction.id}/upload`)
+      .field("destinationId", "")
+      .field("imageState", "without_image")
+      .field("limit", "24")
+      .field("page", "1")
+      .field("q", "")
+      .attach("mainImage", SAMPLE_PNG_BUFFER, {
+        contentType: "image/png",
+        filename: "barelang-main.png",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Attraction assets updated");
+    expect(response.text).toContain('data-page="admin-attraction-assets"');
+
+    const refreshed = await db.Attraction.findByPk(attraction.id);
+
+    expect(refreshed.mainImageUrl).toContain("/assets/attractions/uploads/batam/");
+    expect(refreshed.thumbnailImageUrl).toContain("/assets/attractions/uploads/batam/");
+    expect(refreshed.metadata.assetSource).toEqual(
+      expect.objectContaining({
+        provider: "stoury_upload",
+        strategy: "admin_upload_v1",
+      })
+    );
+
+    const mainPath = new URL(refreshed.mainImageUrl).pathname.replace(/^\/assets\//, "");
+    const thumbnailPath = new URL(refreshed.thumbnailImageUrl).pathname.replace(/^\/assets\//, "");
+
+    await expect(
+      fs.access(path.join(process.cwd(), "src", "public", mainPath))
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(process.cwd(), "src", "public", thumbnailPath))
+    ).resolves.toBeUndefined();
+
+    await refreshed.update(originalValues);
   });
 });

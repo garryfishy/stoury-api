@@ -346,4 +346,89 @@ describe("admin web service", () => {
       })
     );
   });
+
+  test("getAttractionAssetsPageData filters attractions by usable image state", async () => {
+    const destinations = [
+      {
+        id: "dest-1",
+        name: "Batam",
+        slug: "batam",
+        isActive: true,
+        countryName: "Indonesia",
+      },
+    ];
+    const service = createAdminWebService({
+      dbProvider: () => ({
+        Destination: {
+          findAll: jest.fn().mockResolvedValue(destinations),
+        },
+        Attraction: {
+          findAll: jest.fn().mockResolvedValue([
+            {
+              id: "attr-with",
+              destinationId: "dest-1",
+              isActive: true,
+              name: "Barelang Bridge",
+              slug: "barelang-bridge",
+              mainImageUrl: "https://cdn.example.com/barelang.jpg",
+              thumbnailImageUrl: "https://cdn.example.com/barelang-thumb.jpg",
+              metadata: {
+                assetSource: {
+                  provider: "stoury_upload",
+                },
+              },
+            },
+            {
+              id: "attr-without",
+              destinationId: "dest-1",
+              isActive: true,
+              name: "Harbour Bay Waterfront",
+              slug: "harbour-bay-waterfront",
+              mainImageUrl: "https://example.com/assets/attractions/batam/harbour-bay-main.svg",
+              thumbnailImageUrl: null,
+              metadata: {},
+            },
+          ]),
+        },
+      }),
+      loginService: { login: jest.fn() },
+      enrichmentService: {
+        listPendingEnrichment: jest.fn(),
+        getReviewCandidates: jest.fn(),
+        resolveReview: jest.fn(),
+        rejectReview: jest.fn(),
+      },
+      runtimeStatusProvider: jest.fn().mockReturnValue({
+        status: "enabled",
+        message: "ok",
+      }),
+    });
+    jest.spyOn(service, "getDashboardData").mockResolvedValue({
+      summary: {
+        pendingCount: 1,
+        staleCount: 0,
+        needsReviewCount: 0,
+        staleDays: 30,
+      },
+    });
+
+    const result = await service.getAttractionAssetsPageData({
+      imageState: "without_image",
+      page: 1,
+      limit: 24,
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        id: "attr-without",
+        hasUsableImage: false,
+      }),
+    ]);
+    expect(result.pagination).toEqual({
+      page: 1,
+      limit: 24,
+      total: 1,
+      totalPages: 1,
+    });
+  });
 });

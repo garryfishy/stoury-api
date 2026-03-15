@@ -459,6 +459,11 @@ code {
   gap: 1rem;
 }
 
+.asset-admin-list {
+  display: grid;
+  gap: 1rem;
+}
+
 .destination-admin-card {
   display: flex;
   flex-direction: column;
@@ -479,8 +484,19 @@ code {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.asset-admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .destination-admin-meta,
 .destination-admin-actions,
+.asset-admin-meta,
 .destination-toggle-form,
 .checkbox-field {
   display: flex;
@@ -489,6 +505,10 @@ code {
 }
 
 .destination-admin-meta {
+  justify-content: space-between;
+}
+
+.asset-admin-meta {
   justify-content: space-between;
 }
 
@@ -521,6 +541,58 @@ code {
   flex-wrap: wrap;
 }
 
+.asset-admin-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.asset-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.asset-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+}
+
+.asset-preview-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--color-text-soft);
+}
+
+.asset-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border-radius: 12px;
+  background: var(--color-text-soft);
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.asset-upload-form {
+  gap: 0.8rem 1rem;
+}
+
+.file-field input[type="file"] {
+  min-width: 240px;
+  padding: 0.75rem 0;
+  background: transparent;
+  border: 0;
+}
+
 .checkbox-field input {
   width: 1rem;
   height: 1rem;
@@ -534,7 +606,8 @@ code {
 @media (max-width: 1080px) {
   .metric-grid,
   .panel-grid,
-  .quick-links {
+  .quick-links,
+  .asset-preview-grid {
     grid-template-columns: 1fr;
   }
 
@@ -560,8 +633,10 @@ code {
   .pagination,
   .login-shell,
   .destination-admin-meta,
+  .asset-admin-meta,
   .destination-admin-actions,
-  .destination-toggle-form {
+  .destination-toggle-form,
+  .asset-upload-form {
     flex-direction: column;
     align-items: stretch;
   }

@@ -13,6 +13,44 @@ const {
 } = require("../admin-attractions/admin-attractions.service");
 const { authService } = require("../auth/auth.service");
 const { serializeDestination } = require("../destinations/destinations.helpers");
+const {
+  assertUploadFileSupported,
+  buildAttractionAssetUploadPath,
+  buildAttractionAssetUrl,
+  buildUploadMetadata,
+  hasUsableAttractionImage,
+  inferFileExtension,
+  slugify,
+  writeUploadedImage,
+} = require("./admin-web.assets");
+
+const DEFAULT_ASSET_PAGE_LIMIT = 24;
+
+const normalizeAssetPageFilters = (filters = {}) => ({
+  destinationId: filters.destinationId ? String(filters.destinationId).trim() : "",
+  imageState: ["all", "with_image", "without_image"].includes(String(filters.imageState || "all"))
+    ? String(filters.imageState || "all")
+    : "all",
+  page: Math.max(1, Number.parseInt(filters.page || "1", 10) || 1),
+  limit: Math.min(
+    100,
+    Math.max(1, Number.parseInt(filters.limit || String(DEFAULT_ASSET_PAGE_LIMIT), 10) || DEFAULT_ASSET_PAGE_LIMIT)
+  ),
+  q: filters.q ? String(filters.q).trim() : "",
+});
+
+const buildAttractionAssetRow = (attraction, destination) => ({
+  destination: serializeDestination(destination),
+  fullAddress: readRecordValue(attraction, ["fullAddress"], ""),
+  hasUsableImage: hasUsableAttractionImage(attraction),
+  id: readRecordValue(attraction, ["id"]),
+  mainImageUrl: readRecordValue(attraction, ["mainImageUrl"], null),
+  name: readRecordValue(attraction, ["name"], ""),
+  slug: readRecordValue(attraction, ["slug"], ""),
+  thumbnailImageUrl: readRecordValue(attraction, ["thumbnailImageUrl"], null),
+  uploadedSourceProvider:
+    readRecordValue(attraction, ["metadata", "assetSource", "provider"], null) || null,
+});
 
 const createAdminWebService = ({
   dbProvider = getDb,
@@ -171,6 +209,92 @@ const createAdminWebService = ({
     };
   },
 
+  async getAttractionAssetsPageData(filters = {}) {
+    const db = dbProvider();
+    const Attraction = getRequiredModel(db, "Attraction");
+    const Destination = getRequiredModel(db, "Destination");
+    const normalizedFilters = normalizeAssetPageFilters(filters);
+    const destinations = await Destination.findAll({
+      order: [["name", "ASC"]],
+    });
+    const destinationById = new Map(
+      destinations.map((destination) => [readRecordValue(destination, ["id"]), destination])
+    );
+    const where = {
+      isActive: true,
+    };
+
+    if (normalizedFilters.destinationId) {
+      where.destinationId = normalizedFilters.destinationId;
+    }
+
+    if (normalizedFilters.q) {
+      where[Op.or] = [
+        {
+          name: {
+            [Op.iLike]: `%${normalizedFilters.q}%`,
+          },
+        },
+        {
+          slug: {
+            [Op.iLike]: `%${normalizedFilters.q}%`,
+          },
+        },
+        {
+          fullAddress: {
+            [Op.iLike]: `%${normalizedFilters.q}%`,
+          },
+        },
+      ];
+    }
+
+    const attractions = await Attraction.findAll({
+      where,
+      order: [["name", "ASC"]],
+    });
+
+    const filteredRows = attractions
+      .map((attraction) => {
+        const destination = destinationById.get(readRecordValue(attraction, ["destinationId"]));
+
+        if (!destination) {
+          return null;
+        }
+
+        return buildAttractionAssetRow(attraction, destination);
+      })
+      .filter(Boolean)
+      .filter((row) => {
+        if (normalizedFilters.imageState === "with_image") {
+          return row.hasUsableImage;
+        }
+
+        if (normalizedFilters.imageState === "without_image") {
+          return !row.hasUsableImage;
+        }
+
+        return true;
+      });
+
+    const total = filteredRows.length;
+    const offset = (normalizedFilters.page - 1) * normalizedFilters.limit;
+    const items = filteredRows.slice(offset, offset + normalizedFilters.limit);
+
+    return {
+      destinationOptions: destinations.map((destination) => serializeDestination(destination)),
+      filters: normalizedFilters,
+      items,
+      pagination: {
+        limit: normalizedFilters.limit,
+        page: normalizedFilters.page,
+        total,
+        totalPages: total ? Math.ceil(total / normalizedFilters.limit) : 0,
+      },
+      runtimeStatus: runtimeStatusProvider(),
+      summary: (await this.getDashboardData()).summary,
+    };
+  },
+
   async setDestinationActiveState(destinationId, isActive) {
     const db = dbProvider();
     const Destination = getRequiredModel(db, "Destination");
@@ -247,6 +371,79 @@ const createAdminWebService = ({
 
   async rejectPendingReview(attractionId, reason) {
     return enrichmentService.rejectReview(attractionId, reason);
+  },
+
+  async uploadAttractionAssets(attractionId, files = {}, { baseUrl } = {}) {
+    const db = dbProvider();
+    const Attraction = getRequiredModel(db, "Attraction");
+    const Destination = getRequiredModel(db, "Destination");
+    const attraction = await Attraction.findByPk(attractionId);
+
+    if (!attraction || !readRecordValue(attraction, ["isActive"], false)) {
+      throw new AppError("Attraction not found.", 404);
+    }
+
+    const destination = await Destination.findByPk(
+      readRecordValue(attraction, ["destinationId"], null)
+    );
+
+    if (!destination) {
+      throw new AppError("Destination not found.", 404);
+    }
+
+    const mainFile = files.mainImage || null;
+    const thumbnailFile = files.thumbnailImage || null;
+
+    if (!mainFile && !thumbnailFile) {
+      throw new AppError("Upload at least one image file.", 422);
+    }
+
+    assertUploadFileSupported(mainFile);
+    assertUploadFileSupported(thumbnailFile);
+
+    const destinationSlug = slugify(readRecordValue(destination, ["slug"], "destination"));
+    const attractionSlug = slugify(readRecordValue(attraction, ["slug"], attractionId));
+    const timestamp = Date.now();
+    const effectiveMainFile = mainFile || thumbnailFile;
+    const effectiveThumbnailFile = thumbnailFile || mainFile || effectiveMainFile;
+    const mainRelativePath = buildAttractionAssetUploadPath({
+      attractionSlug,
+      destinationSlug,
+      extension: inferFileExtension(effectiveMainFile),
+      timestamp,
+      variant: "main",
+    });
+    const thumbnailRelativePath = buildAttractionAssetUploadPath({
+      attractionSlug,
+      destinationSlug,
+      extension: inferFileExtension(effectiveThumbnailFile),
+      timestamp,
+      variant: "thumbnail",
+    });
+
+    await Promise.all([
+      writeUploadedImage({ file: effectiveMainFile, relativePath: mainRelativePath }),
+      writeUploadedImage({ file: effectiveThumbnailFile, relativePath: thumbnailRelativePath }),
+    ]);
+
+    await attraction.update({
+      mainImageUrl: buildAttractionAssetUrl({
+        relativePath: mainRelativePath,
+        baseUrl,
+      }),
+      thumbnailImageUrl: buildAttractionAssetUrl({
+        relativePath: thumbnailRelativePath,
+        baseUrl,
+      }),
+      metadata: buildUploadMetadata({
+        attraction,
+        mainFile,
+        thumbnailFile,
+        timestamp,
+      }),
+    });
+
+    return buildAttractionAssetRow(attraction, destination);
   },
 
   async ensureDestinationExists(destinationId) {

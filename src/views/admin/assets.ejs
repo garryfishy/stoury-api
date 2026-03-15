@@ -1,0 +1,199 @@
+<%- include("partials/shell-start", {
+  activeNav,
+  adminUser,
+  alert,
+  assetsBasePath,
+  pageDescription,
+  pageTitle
+}) %>
+  <div class="page-stack" data-page="admin-attraction-assets">
+    <section class="hero-card">
+      <div>
+        <p class="admin-eyebrow">Owned asset uploads</p>
+        <h2 class="section-title">Upload local images for attractions</h2>
+        <p class="section-copy">
+          Filter attractions by destination, search text, and whether they already have a usable image.
+          Upload a main image and an optional thumbnail to replace fallback or missing visuals.
+        </p>
+      </div>
+      <div class="status-inline">
+        <%- include("partials/status-badge", {
+          tone: runtimeStatusTone,
+          label: runtimeStatus.status
+        }) %>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <div>
+          <p class="admin-eyebrow">Filters</p>
+          <h2 class="section-title">Find attractions that still need images</h2>
+        </div>
+      </div>
+
+      <form method="get" action="/admin/attraction-assets" class="admin-form admin-form-inline">
+        <label class="form-field">
+          <span>Destination</span>
+          <select name="destinationId">
+            <option value="">All destinations</option>
+            <% destinationOptions.forEach((destination) => { %>
+              <option
+                value="<%= destination.id %>"
+                <%= filters.destinationId === destination.id ? "selected" : "" %>
+              >
+                <%= destination.name %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Image state</span>
+          <select name="imageState">
+            <option value="all" <%= filters.imageState === "all" ? "selected" : "" %>>
+              All
+            </option>
+            <option
+              value="with_image"
+              <%= filters.imageState === "with_image" ? "selected" : "" %>
+            >
+              With image
+            </option>
+            <option
+              value="without_image"
+              <%= filters.imageState === "without_image" ? "selected" : "" %>
+            >
+              Without image
+            </option>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Search</span>
+          <input
+            type="search"
+            name="q"
+            value="<%= filters.q %>"
+            placeholder="Name, slug, or address"
+          >
+        </label>
+
+        <label class="form-field">
+          <span>Page size</span>
+          <select name="limit">
+            <% [12, 24, 48].forEach((limitOption) => { %>
+              <option
+                value="<%= limitOption %>"
+                <%= filters.limit === limitOption ? "selected" : "" %>
+              >
+                <%= limitOption %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+
+        <button type="submit" class="button button-primary">Apply filters</button>
+      </form>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-heading">
+        <div>
+          <p class="admin-eyebrow">Attractions</p>
+          <h2 class="section-title">Upload queue</h2>
+        </div>
+        <p class="pagination-summary">
+          <strong><%= pagination.total %></strong> matching attractions
+        </p>
+      </div>
+
+      <div class="asset-admin-list">
+        <% if (!items.length) { %>
+          <article class="asset-admin-card">
+            <p class="section-copy">No attractions match the current filters.</p>
+          </article>
+        <% } %>
+
+        <% items.forEach((item) => { %>
+          <article class="asset-admin-card">
+            <div class="asset-admin-meta">
+              <div>
+                <h3 class="destination-admin-title"><%= item.name %></h3>
+                <p class="destination-admin-copy">
+                  <code><%= item.slug %></code>
+                  • <%= item.destination.name %>
+                  <% if (item.fullAddress) { %>
+                    • <%= item.fullAddress %>
+                  <% } %>
+                </p>
+              </div>
+
+              <div class="asset-admin-badges">
+                <%- include("partials/status-badge", {
+                  tone: item.hasUsableImage ? "success" : "warning",
+                  label: item.hasUsableImage ? "with image" : "without image"
+                }) %>
+                <% if (item.uploadedSourceProvider) { %>
+                  <%- include("partials/status-badge", {
+                    tone: "info",
+                    label: item.uploadedSourceProvider
+                  }) %>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="asset-preview-grid">
+              <div class="asset-preview-card">
+                <p class="metric-label">Main image</p>
+                <% if (item.mainImageUrl) { %>
+                  <img src="<%= item.mainImageUrl %>" alt="<%= item.name %> main image" class="asset-preview-image">
+                <% } else { %>
+                  <div class="asset-preview-empty">No main image</div>
+                <% } %>
+              </div>
+
+              <div class="asset-preview-card">
+                <p class="metric-label">Thumbnail</p>
+                <% if (item.thumbnailImageUrl) { %>
+                  <img src="<%= item.thumbnailImageUrl %>" alt="<%= item.name %> thumbnail image" class="asset-preview-image">
+                <% } else { %>
+                  <div class="asset-preview-empty">No thumbnail</div>
+                <% } %>
+              </div>
+            </div>
+
+            <form
+              method="post"
+              action="/admin/attraction-assets/<%= item.id %>/upload"
+              enctype="multipart/form-data"
+              class="admin-form admin-form-inline asset-upload-form"
+            >
+              <input type="hidden" name="destinationId" value="<%= filters.destinationId %>">
+              <input type="hidden" name="imageState" value="<%= filters.imageState %>">
+              <input type="hidden" name="q" value="<%= filters.q %>">
+              <input type="hidden" name="limit" value="<%= filters.limit %>">
+              <input type="hidden" name="page" value="<%= pagination.page %>">
+
+              <label class="form-field file-field">
+                <span>Main image</span>
+                <input type="file" name="mainImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+
+              <label class="form-field file-field">
+                <span>Thumbnail image</span>
+                <input type="file" name="thumbnailImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+
+              <button type="submit" class="button button-primary">Upload local assets</button>
+            </form>
+          </article>
+        <% }) %>
+      </div>
+
+      <% if (pagination.totalPages > 1) { %>
+        <%- include("partials/pagination", { pagination, buildPageHref }) %>
+      <% } %>
+    </section>
+  </div>
+<%- include("partials/shell-end", { assetsBasePath }) %>

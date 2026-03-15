@@ -27,6 +27,8 @@ const buildBaseViewModel = ({
   pageTitle,
 });
 
+const ATTRACTION_ASSETS_PAGE_PATH = "/admin/attraction-assets";
+
 const coerceFormBoolean = (value, fallback = false) => {
   const normalizedValue = Array.isArray(value) ? value[value.length - 1] : value;
   const normalized = String(normalizedValue || "").trim().toLowerCase();
@@ -84,6 +86,12 @@ const buildDashboardViewModel = ({
       tone: "primary",
     },
     {
+      href: ATTRACTION_ASSETS_PAGE_PATH,
+      label: "Attraction Assets",
+      description: "Upload local images for attractions and filter what still needs coverage.",
+      tone: "primary",
+    },
+    {
       href: "/admin/enrichment/pending",
       label: "Pending Enrichment",
       description: "Open the operational enrichment workspace shell.",
@@ -124,6 +132,64 @@ const buildDestinationsViewModel = ({
   runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
   summary,
   destinations,
+});
+
+const normalizeAssetPageFilters = (query = {}) => ({
+  destinationId: query.destinationId ? String(query.destinationId).trim() : "",
+  imageState: query.imageState ? String(query.imageState).trim() : "all",
+  page: Math.max(1, Number.parseInt(query.page || "1", 10) || 1),
+  limit: Math.min(100, Math.max(1, Number.parseInt(query.limit || "24", 10) || 24)),
+  q: query.q ? String(query.q).trim() : "",
+});
+
+const buildAssetPageHref = (filters, page) => {
+  const params = new URLSearchParams();
+
+  if (filters.destinationId) {
+    params.set("destinationId", filters.destinationId);
+  }
+
+  if (filters.imageState && filters.imageState !== "all") {
+    params.set("imageState", filters.imageState);
+  }
+
+  if (filters.limit && filters.limit !== 24) {
+    params.set("limit", String(filters.limit));
+  }
+
+  if (filters.q) {
+    params.set("q", filters.q);
+  }
+
+  params.set("page", String(page));
+
+  return `${ATTRACTION_ASSETS_PAGE_PATH}?${params.toString()}`;
+};
+
+const buildAttractionAssetsViewModel = ({
+  adminUser,
+  alert = null,
+  destinationOptions = [],
+  filters,
+  items = [],
+  pagination,
+  runtimeStatus,
+  summary,
+} = {}) => ({
+  ...buildBaseViewModel({
+    activeNav: "attraction-assets",
+    adminUser,
+    alert,
+    pageTitle: "Attraction Assets",
+  }),
+  buildPageHref: (page) => buildAssetPageHref(filters, page),
+  destinationOptions,
+  filters,
+  items,
+  pagination,
+  runtimeStatus,
+  runtimeStatusTone: getRuntimeStatusTone(runtimeStatus.status),
+  summary,
 });
 
 const normalizePendingPageFilters = (query = {}) => ({
@@ -263,6 +329,29 @@ const renderPendingEnrichmentPageWithAlert = async (
   );
 };
 
+const renderAttractionAssetsPageWithAlert = async (
+  req,
+  res,
+  { alert = null, statusCode = 200 } = {}
+) => {
+  const filters = normalizeAssetPageFilters(req.query);
+  const pageData = await adminWebService.getAttractionAssetsPageData(filters);
+
+  return res.status(statusCode).render(
+    "admin/assets",
+    buildAttractionAssetsViewModel({
+      adminUser: req.adminAuth,
+      alert,
+      destinationOptions: pageData.destinationOptions,
+      filters,
+      items: pageData.items,
+      pagination: pageData.pagination,
+      runtimeStatus: pageData.runtimeStatus,
+      summary: pageData.summary,
+    })
+  );
+};
+
 const renderPendingReviewPageWithAlert = async (
   req,
   res,
@@ -356,6 +445,10 @@ const renderDestinationsPage = asyncHandler(async (req, res) => {
   return renderDestinationsPageWithAlert(req, res);
 });
 
+const renderAttractionAssetsPage = asyncHandler(async (req, res) => {
+  return renderAttractionAssetsPageWithAlert(req, res);
+});
+
 const updateDestinationState = asyncHandler(async (req, res) => {
   const isActive = coerceFormBoolean(req.body?.isActive, false);
   const destination = await adminWebService.setDestinationActiveState(
@@ -394,6 +487,30 @@ const runDestinationPhotoBackfill = asyncHandler(async (req, res) => {
       type: "success",
       title: "Destination photo backfill completed",
       message: `Processed ${result.attemptedCount} attractions: ${result.updatedCount} updated, ${result.skippedCount} skipped, ${result.failedCount} failed.`,
+    },
+  });
+});
+
+const uploadAttractionAssets = asyncHandler(async (req, res) => {
+  const result = await adminWebService.uploadAttractionAssets(req.params.attractionId, {
+    mainImage: Array.isArray(req.files?.mainImage) ? req.files.mainImage[0] : null,
+    thumbnailImage: Array.isArray(req.files?.thumbnailImage) ? req.files.thumbnailImage[0] : null,
+  }, {
+    baseUrl: req.app?.locals?.publicBaseUrl || `${req.protocol}://${req.get("host")}`,
+  });
+  req.query = {
+    destinationId: req.body?.destinationId || "",
+    imageState: req.body?.imageState || "all",
+    limit: req.body?.limit || "24",
+    page: req.body?.page || "1",
+    q: req.body?.q || "",
+  };
+
+  return renderAttractionAssetsPageWithAlert(req, res, {
+    alert: {
+      type: "success",
+      title: "Attraction assets updated",
+      message: `${result.name} now points to uploaded local asset URLs.`,
     },
   });
 });
@@ -570,6 +687,7 @@ module.exports = {
   handleLogin,
   handleLogout,
   renderAdminNotFound,
+  renderAttractionAssetsPage,
   renderDashboard,
   renderDestinationsPage,
   renderLoginPage,
@@ -583,5 +701,6 @@ module.exports = {
   runPendingBatchPhotoBackfill,
   runDestinationEnrichment,
   runDestinationPhotoBackfill,
+  uploadAttractionAssets,
   updateDestinationState,
 };

@@ -3,6 +3,7 @@ jest.mock("../src/modules/admin-web/admin-web.service", () => ({
     backfillPendingAttractionPhotos: jest.fn(),
     backfillPendingBatchPhotos: jest.fn(),
     backfillDestinationPhotos: jest.fn(),
+    getAttractionAssetsPageData: jest.fn(),
     getDashboardData: jest.fn(),
     getPendingEnrichmentPageData: jest.fn(),
     getPendingReviewPageData: jest.fn(),
@@ -13,6 +14,7 @@ jest.mock("../src/modules/admin-web/admin-web.service", () => ({
     rejectPendingReview: jest.fn(),
     resolvePendingReview: jest.fn(),
     setDestinationActiveState: jest.fn(),
+    uploadAttractionAssets: jest.fn(),
   },
 }));
 
@@ -23,6 +25,7 @@ const {
   handleLogin,
   handleLogout,
   renderDashboard,
+  renderAttractionAssetsPage,
   renderDestinationsPage,
   renderLoginPage,
   renderPendingEnrichmentShell,
@@ -35,6 +38,7 @@ const {
   runPendingBatchEnrichment,
   runPendingBatchPhotoBackfill,
   runDestinationPhotoBackfill,
+  uploadAttractionAssets,
   updateDestinationState,
 } = require("../src/modules/admin-web/admin-web.controller");
 
@@ -183,6 +187,45 @@ describe("admin web controller", () => {
     );
   });
 
+  test("renderAttractionAssetsPage renders the upload workspace", async () => {
+    const req = {
+      adminAuth: {
+        email: "admin@example.com",
+      },
+      query: {},
+    };
+    const res = createResponse();
+
+    adminWebService.getAttractionAssetsPageData.mockResolvedValue({
+      destinationOptions: [{ id: "dest-1", name: "Batam" }],
+      filters: {
+        destinationId: "",
+        imageState: "all",
+        page: 1,
+        limit: 24,
+        q: "",
+      },
+      items: [{ id: "attr-1", name: "Barelang Bridge", hasUsableImage: false }],
+      pagination: { page: 1, limit: 24, total: 1, totalPages: 1 },
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+    });
+
+    await renderAttractionAssetsPage(req, res, jest.fn());
+
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/assets",
+      expect.objectContaining({
+        pageTitle: "Attraction Assets",
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: "attr-1",
+          }),
+        ]),
+      })
+    );
+  });
+
   test("updateDestinationState re-renders the dashboard with a success alert", async () => {
     const req = {
       adminAuth: { email: "admin@example.com" },
@@ -275,6 +318,76 @@ describe("admin web controller", () => {
       expect.objectContaining({
         alert: expect.objectContaining({
           title: "Destination photo backfill completed",
+        }),
+      })
+    );
+  });
+
+  test("uploadAttractionAssets re-renders the asset page with a success alert", async () => {
+    const req = {
+      adminAuth: { email: "admin@example.com" },
+      app: {
+        locals: {},
+      },
+      body: {
+        destinationId: "dest-1",
+        imageState: "without_image",
+        limit: "24",
+        page: "1",
+        q: "batam",
+      },
+      files: {
+        mainImage: [
+          {
+            originalname: "batam.jpg",
+            mimetype: "image/jpeg",
+            buffer: Buffer.from("main"),
+          },
+        ],
+      },
+      get: jest.fn().mockReturnValue("localhost:3000"),
+      params: { attractionId: "attr-1" },
+      protocol: "http",
+      query: {},
+    };
+    const res = createResponse();
+    adminWebService.uploadAttractionAssets.mockResolvedValue({
+      id: "attr-1",
+      name: "Barelang Bridge",
+    });
+    adminWebService.getAttractionAssetsPageData.mockResolvedValue({
+      destinationOptions: [],
+      filters: {
+        destinationId: "dest-1",
+        imageState: "without_image",
+        page: 1,
+        limit: 24,
+        q: "batam",
+      },
+      items: [],
+      pagination: { page: 1, limit: 24, total: 0, totalPages: 0 },
+      runtimeStatus: { status: "enabled", message: "ok" },
+      summary: { pendingCount: 1, staleCount: 0, needsReviewCount: 0, staleDays: 30 },
+    });
+
+    await uploadAttractionAssets(req, res, jest.fn());
+
+    expect(adminWebService.uploadAttractionAssets).toHaveBeenCalledWith(
+      "attr-1",
+      expect.objectContaining({
+        mainImage: expect.objectContaining({
+          originalname: "batam.jpg",
+        }),
+      }),
+      {
+        baseUrl: "http://localhost:3000",
+      }
+    );
+    expect(res.render).toHaveBeenCalledWith(
+      "admin/assets",
+      expect.objectContaining({
+        alert: expect.objectContaining({
+          title: "Attraction assets updated",
         }),
       })
     );
