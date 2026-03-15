@@ -630,9 +630,9 @@ const adminPhotoBackfillSummary = {
       attraction: {
         ...adminEnrichmentSuccessResult.attraction,
         thumbnailImageUrl:
-          "http://43.157.208.56:2000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
+          "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=80",
         mainImageUrl:
-          "http://43.157.208.56:2000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main",
+          "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80",
       },
       outcome: "updated",
       updated: true,
@@ -643,7 +643,7 @@ const adminPhotoBackfillSummary = {
       attraction: adminEnrichmentSuccessResult.attraction,
       outcome: "skipped",
       updated: false,
-      reason: "Google Places does not expose photos for this attraction.",
+      reason: "No owned/licensed asset was available for this attraction.",
       error: null,
     },
   ],

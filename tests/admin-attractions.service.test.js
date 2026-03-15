@@ -323,41 +323,17 @@ describe("admin attractions service", () => {
     });
   });
 
-  test("backfillPhotos persists backend image URLs for enriched attractions with Google photos", async () => {
+  test("backfillPhotos persists licensed asset URLs for attractions with replaceable image values", async () => {
     const attractionRecord = createAttractionRecord({
-      externalSource: "google_places",
-      externalPlaceId: "google-place-1",
-      enrichmentStatus: "enriched",
       thumbnailImageUrl: null,
       mainImageUrl: null,
     });
     const db = buildDb(attractionRecord, null, {
       listResults: [attractionRecord],
     });
-    const googlePlacesClient = {
-      getPlaceDetails: jest.fn().mockResolvedValue({
-        placeId: "google-place-1",
-        photos: [{ photoReference: "photo-ref-1", width: 1600, height: 1200 }],
-      }),
-      getPlacePhoto: jest
-        .fn()
-        .mockResolvedValueOnce({
-          body: Buffer.from("thumb"),
-          contentType: "image/jpeg",
-        })
-        .mockResolvedValueOnce({
-          body: Buffer.from("main"),
-          contentType: "image/jpeg",
-        }),
-    };
-    const photoCache = {
-      read: jest.fn(),
-      write: jest.fn().mockResolvedValue(undefined),
-    };
     const service = createAdminAttractionsService({
       dbProvider: () => db,
-      googlePlacesClient,
-      photoCache,
+      googlePlacesClient: {},
     });
 
     const result = await service.backfillPhotos({
@@ -370,45 +346,19 @@ describe("admin attractions service", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           destinationId: destination.id,
-          externalSource: "google_places",
         }),
-      })
-    );
-    expect(googlePlacesClient.getPlaceDetails).toHaveBeenCalledWith("google-place-1", {
-      includePhotos: true,
-    });
-    expect(googlePlacesClient.getPlacePhoto).toHaveBeenNthCalledWith(1, {
-      photoReference: "photo-ref-1",
-      maxWidth: 640,
-    });
-    expect(googlePlacesClient.getPlacePhoto).toHaveBeenNthCalledWith(2, {
-      photoReference: "photo-ref-1",
-      maxWidth: 1600,
-    });
-    expect(photoCache.write).toHaveBeenNthCalledWith(
-      1,
-      attractionRecord.id,
-      "thumbnail",
-      expect.objectContaining({
-        body: Buffer.from("thumb"),
-        contentType: "image/jpeg",
-      })
-    );
-    expect(photoCache.write).toHaveBeenNthCalledWith(
-      2,
-      attractionRecord.id,
-      "main",
-      expect.objectContaining({
-        body: Buffer.from("main"),
-        contentType: "image/jpeg",
       })
     );
     expect(attractionRecord.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        thumbnailImageUrl:
-          "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=thumbnail",
-        mainImageUrl:
-          "http://localhost:3000/api/attractions/33333333-3333-4333-8333-333333333333/photo?variant=main",
+        thumbnailImageUrl: expect.stringContaining("images.unsplash.com/"),
+        mainImageUrl: expect.stringContaining("images.unsplash.com/"),
+        metadata: expect.objectContaining({
+          assetSource: expect.objectContaining({
+            provider: "unsplash",
+            licenseLabel: "Unsplash License",
+          }),
+        }),
       }),
       { transaction: null }
     );
@@ -422,31 +372,17 @@ describe("admin attractions service", () => {
     );
   });
 
-  test("backfillPhotos skips attractions when Google Places has no photos", async () => {
+  test("backfillPhotos skips attractions that already have owned asset URLs", async () => {
     const attractionRecord = createAttractionRecord({
-      externalSource: "google_places",
-      externalPlaceId: "google-place-1",
-      enrichmentStatus: "enriched",
-      thumbnailImageUrl: null,
-      mainImageUrl: null,
+      thumbnailImageUrl: "https://cdn.example.com/owned/pantai-nongsa-thumb.jpg",
+      mainImageUrl: "https://cdn.example.com/owned/pantai-nongsa-main.jpg",
     });
     const db = buildDb(attractionRecord, null, {
       listResults: [attractionRecord],
     });
-    const googlePlacesClient = {
-      getPlaceDetails: jest.fn().mockResolvedValue({
-        placeId: "google-place-1",
-        photos: [],
-      }),
-    };
-    const photoCache = {
-      read: jest.fn(),
-      write: jest.fn().mockResolvedValue(undefined),
-    };
     const service = createAdminAttractionsService({
       dbProvider: () => db,
-      googlePlacesClient,
-      photoCache,
+      googlePlacesClient: {},
     });
 
     const result = await service.backfillPhotos({
@@ -456,22 +392,15 @@ describe("admin attractions service", () => {
     });
 
     expect(attractionRecord.update).not.toHaveBeenCalled();
-    expect(photoCache.write).not.toHaveBeenCalled();
     expect(result).toEqual(
       expect.objectContaining({
-        attemptedCount: 1,
+        attemptedCount: 0,
         updatedCount: 0,
-        skippedCount: 1,
+        skippedCount: 0,
         failedCount: 0,
       })
     );
-    expect(result.results[0]).toEqual(
-      expect.objectContaining({
-        outcome: "skipped",
-        updated: false,
-        reason: "Google Places does not expose photos for this attraction.",
-      })
-    );
+    expect(result.results).toEqual([]);
   });
 
   test("getReviewCandidates returns ranked candidates for manual review", async () => {

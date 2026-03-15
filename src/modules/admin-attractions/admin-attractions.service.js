@@ -1,10 +1,6 @@
 const { Op, UniqueConstraintError } = require("sequelize");
-const env = require("../../config/env");
 const { getDb, getRequiredModel, withTransaction } = require("../../database/db-context");
 const { AppError } = require("../../utils/app-error");
-const {
-  createFileSystemPhotoCache,
-} = require("../../utils/attraction-photo-cache");
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
   buildPaginationMeta,
@@ -13,9 +9,12 @@ const {
 } = require("../../utils/pagination");
 const { googlePlacesClient: defaultGooglePlacesClient } = require("../../services/google-places");
 const {
-  ATTRACTION_PHOTO_VARIANTS,
-  buildAttractionPhotoUrl,
+  loadAttractionCategoriesByAttractionIds,
 } = require("../attractions/attractions.helpers");
+const {
+  buildOwnedAssetValues,
+  shouldBackfillOwnedAsset,
+} = require("../attractions/owned-attraction-assets");
 const {
   DEFAULT_BATCH_LIMIT,
   DEFAULT_PENDING_LIMIT,
@@ -34,7 +33,6 @@ const {
 const createAdminAttractionsService = ({
   dbProvider = getDb,
   googlePlacesClient = defaultGooglePlacesClient,
-  photoCache = createFileSystemPhotoCache(),
 } = {}) => {
   const getModels = (db) => ({
     Attraction: getRequiredModel(db, "Attraction"),
@@ -263,10 +261,6 @@ const createAdminAttractionsService = ({
     const { Attraction, Destination } = getModels(db);
     const where = {
       isActive: true,
-      externalSource: GOOGLE_ENRICHMENT_SOURCE,
-      externalPlaceId: {
-        [Op.ne]: null,
-      },
     };
 
     if (filters.attractionId) {
@@ -278,24 +272,24 @@ const createAdminAttractionsService = ({
       where.destinationId = filters.destinationId;
     }
 
-    if (!filters.force) {
-      where[Op.or] = [
-        { thumbnailImageUrl: null },
-        { mainImageUrl: null },
-      ];
-    }
-
     const attractions = await Attraction.findAll({
       where,
       order: [["name", "ASC"]],
-      limit: filters.limit,
       transaction,
     });
     const destinationMap = await loadDestinationMap(Destination, attractions, transaction);
+    const categoriesByAttractionId = await loadAttractionCategoriesByAttractionIds(
+      db,
+      attractions.map((attraction) => readRecordValue(attraction, ["id"]))
+    );
     const hasState = supportsStateTracking(Attraction);
+    const filteredAttractions = attractions
+      .filter((attraction) => shouldBackfillOwnedAsset(attraction, { force: filters.force }))
+      .slice(0, filters.limit);
 
     return {
-      attractions,
+      attractions: filteredAttractions,
+      categoriesByAttractionId,
       destinationMap,
       hasState,
     };
@@ -713,100 +707,54 @@ const createAdminAttractionsService = ({
     });
   };
 
-  const buildPhotoPersistenceValues = (attraction) => ({
-    thumbnailImageUrl:
-      readRecordValue(attraction, ["thumbnailImageUrl"], null) ||
-      buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.thumbnail),
-    mainImageUrl:
-      readRecordValue(attraction, ["mainImageUrl"], null) ||
-      buildAttractionPhotoUrl(attraction, ATTRACTION_PHOTO_VARIANTS.main),
-  });
-
   const runSinglePhotoBackfill = async (
     db,
     attraction,
-    { dryRun = false, transaction = null, destinationMap = new Map(), hasState = true } = {}
+    {
+      dryRun = false,
+      transaction = null,
+      destinationMap = new Map(),
+      categoriesByAttractionId = new Map(),
+      hasState = true,
+    } = {}
   ) => {
-    const attractionId = readRecordValue(attraction, ["id"]);
     const destination =
       destinationMap.get(readRecordValue(attraction, ["destinationId"])) || null;
-    const placeId = readRecordValue(attraction, ["externalPlaceId"], null);
+    const categories =
+      categoriesByAttractionId.get(readRecordValue(attraction, ["id"])) || [];
+    const photoValues = buildOwnedAssetValues({
+      attraction,
+      destination,
+      categories,
+    });
 
-    if (!placeId) {
+    if (!photoValues) {
       return {
         attraction: serializeAdminAttraction(attraction, destination, {
           hasStateAttributes: hasState,
         }),
         outcome: "skipped",
         updated: false,
-        reason: "Attraction does not have a Google place ID yet.",
+        reason: "No owned/licensed asset was available for this attraction.",
         error: null,
       };
     }
 
-    try {
-      const details = await googlePlacesClient.getPlaceDetails(placeId, {
-        includePhotos: true,
-      });
-
-      if (!Array.isArray(details.photos) || !details.photos.length) {
-        return {
-          attraction: serializeAdminAttraction(attraction, destination, {
-            hasStateAttributes: hasState,
-          }),
-          outcome: "skipped",
-          updated: false,
-          reason: "Google Places does not expose photos for this attraction.",
-          error: null,
-        };
-      }
-
-      if (!dryRun) {
-        const [thumbnailPhoto, mainPhoto] = await Promise.all([
-          googlePlacesClient.getPlacePhoto({
-            photoReference: details.photos[0].photoReference,
-            maxWidth: env.GOOGLE_PLACES_PHOTO_THUMBNAIL_MAX_WIDTH,
-          }),
-          googlePlacesClient.getPlacePhoto({
-            photoReference: details.photos[0].photoReference,
-            maxWidth: env.GOOGLE_PLACES_PHOTO_MAIN_MAX_WIDTH,
-          }),
-        ]);
-
-        await Promise.all([
-          photoCache.write(attractionId, ATTRACTION_PHOTO_VARIANTS.thumbnail, thumbnailPhoto),
-          photoCache.write(attractionId, ATTRACTION_PHOTO_VARIANTS.main, mainPhoto),
-        ]);
-      }
-
-      const photoValues = buildPhotoPersistenceValues(attraction);
-
-      if (!dryRun) {
-        await attraction.update(photoValues, { transaction });
-      }
-
-      return {
-        attraction: serializeAdminAttraction(
-          dryRun ? projectAttractionRecord(attraction, photoValues) : attraction,
-          destination,
-          { hasStateAttributes: hasState }
-        ),
-        outcome: "updated",
-        updated: true,
-        reason: null,
-        error: null,
-      };
-    } catch (error) {
-      return {
-        attraction: serializeAdminAttraction(attraction, destination, {
-          hasStateAttributes: hasState,
-        }),
-        outcome: "failed",
-        updated: false,
-        reason: error?.message || "Google Places photo backfill failed.",
-        error: error?.message || "Google Places photo backfill failed.",
-      };
+    if (!dryRun) {
+      await attraction.update(photoValues, { transaction });
     }
+
+    return {
+      attraction: serializeAdminAttraction(
+        dryRun ? projectAttractionRecord(attraction, photoValues) : attraction,
+        destination,
+        { hasStateAttributes: hasState }
+      ),
+      outcome: "updated",
+      updated: true,
+      reason: null,
+      error: null,
+    };
   };
 
   return {
@@ -900,7 +848,12 @@ const createAdminAttractionsService = ({
     async backfillPhotos(payload) {
       const db = dbProvider();
       const normalizedPayload = normalizePhotoBackfillFilters(payload);
-      const { attractions, destinationMap, hasState } = await findPhotoBackfillCandidates(
+      const {
+        attractions,
+        categoriesByAttractionId,
+        destinationMap,
+        hasState,
+      } = await findPhotoBackfillCandidates(
         db,
         normalizedPayload
       );
@@ -911,6 +864,7 @@ const createAdminAttractionsService = ({
           async (transaction) =>
             runSinglePhotoBackfill(db, attraction, {
               dryRun: normalizedPayload.dryRun,
+              categoriesByAttractionId,
               transaction,
               destinationMap,
               hasState,

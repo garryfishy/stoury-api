@@ -227,9 +227,9 @@ const adminAttractionsPaths = {
   "/api/admin/attractions/backfill-photos": {
     post: {
       tags: ["Admin Attractions"],
-      summary: "Persist attraction photo URLs in bulk for already-enriched attractions",
+      summary: "Persist owned/licensed attraction asset URLs in bulk",
       description:
-        "Internal admin-only bulk photo backfill endpoint. It targets active attractions that already have Google place enrichment, verifies that Google Places exposes at least one photo, and persists stable backend image URLs into the attraction image columns. This feature can be disabled by `ADMIN_ENRICHMENT_ENABLED` and also requires `GOOGLE_PLACES_API_KEY`.",
+        "Internal admin-only bulk photo backfill endpoint. It selects active attractions whose image fields are missing or still point at replaceable generated/provider-backed URLs, assigns a licensed asset URL from the curated asset pool, and persists the final renderable URLs into the attraction image columns. This feature can be disabled by `ADMIN_ENRICHMENT_ENABLED`.",
       security: [{ bearerAuth: [] }],
       requestBody: requestBody(
         schemaRef("BatchAttractionPhotoBackfillRequest"),
@@ -239,7 +239,7 @@ const adminAttractionsPaths = {
           dryRun: false,
           force: false,
         },
-        "Bulk photo persistence settings. By default only attractions with missing image columns are selected."
+        "Bulk photo persistence settings. By default only attractions with missing or replaceable image values are selected."
       ),
       responses: {
         200: successResponse(

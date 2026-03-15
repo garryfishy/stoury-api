@@ -87,7 +87,7 @@ const attractionsPaths = {
       tags: ["Attractions"],
       summary: "Get an attraction image",
       description:
-        "Returns an attraction image for the requested variant. If a curated/manual image URL exists it is used first; otherwise the backend serves a cached photo when available, attempts a Google Places photo lookup, then falls back to the destination hero image before using a generated placeholder as the final fallback.",
+        "Returns an attraction image for the requested variant. Normal user-facing payloads should already point at the stored owned/licensed asset URLs in `thumbnailImageUrl` and `mainImageUrl`. This endpoint remains a fallback path: if a curated/manual image URL exists it is used first; otherwise the backend falls back to the destination hero image before using a generated placeholder as the final fallback.",
       parameters: [
         parameterRef("IdOrSlugParam"),
         {

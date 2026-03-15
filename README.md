@@ -187,6 +187,7 @@ Notes:
 - `src/config/env.js` validates the runtime app/auth env contract on boot.
 - Admin enrichment is an internal admin-only operational feature. Set `ADMIN_ENRICHMENT_ENABLED=false` in shared environments if you want the traveler-facing MVP surface to stay isolated.
 - When admin enrichment is enabled, `GOOGLE_PLACES_API_KEY` must also be configured. The app still boots if it is missing, but the admin enrichment routes return `503` and `/health` exposes the runtime state under `data.features.adminEnrichment`.
+- User-facing attraction images should come from populated `thumbnailImageUrl` / `mainImageUrl` DB fields backed by owned/licensed asset URLs. The v1 rerunnable backfill command is `npm run assets:backfill` and it writes owned Stoury-managed SVG asset URLs plus `metadata.assetSource` provenance into attraction rows without overwriting good non-managed assets unless `--force` is used.
 - `src/database/config/config.js` reads the PostgreSQL variables for Sequelize CLI and DB setup.
 - If `DATABASE_URL`, `DATABASE_URL_TEST`, or `DATABASE_URL_PROD` is present, Sequelize uses that connection string for the matching environment.
 - Leave `ENABLE_HTTPS_UPGRADE_CSP=false` when serving the app directly over plain HTTP on a VPS/IP. Set it to `true` only when the app is behind a real HTTPS terminator such as Nginx, Caddy, or a load balancer.

@@ -324,24 +324,6 @@ describe("admin attractions integration", () => {
       }
     );
 
-    jest.spyOn(googlePlacesClient, "getPlaceDetails").mockResolvedValueOnce({
-      placeId: "google-place-photo-backfill",
-      name: targetAttraction.name,
-      formattedAddress: targetAttraction.fullAddress || `${targetAttraction.name}, Indonesia`,
-      location: targetAttraction.latitude
-        ? {
-            latitude: Number(targetAttraction.latitude),
-            longitude: Number(targetAttraction.longitude),
-          }
-        : null,
-      rating: 4.4,
-      userRatingsTotal: 1234,
-      photos: [{ photoReference: "photo-ref-1", width: 1600, height: 1200 }],
-      types: ["tourist_attraction"],
-      url: null,
-      websiteUri: null,
-    });
-
     const response = await request(app)
       .post("/api/admin/attractions/backfill-photos")
       .set(authHeader(admin.accessToken))
@@ -363,11 +345,15 @@ describe("admin attractions integration", () => {
     expect(response.body.data.updatedCount).toBeGreaterThanOrEqual(1);
 
     const refreshed = await db.Attraction.findByPk(targetAttraction.id);
-    expect(refreshed.thumbnailImageUrl).toBe(
-      `http://localhost:3000/api/attractions/${targetAttraction.id}/photo?variant=thumbnail`
-    );
-    expect(refreshed.mainImageUrl).toBe(
-      `http://localhost:3000/api/attractions/${targetAttraction.id}/photo?variant=main`
+    expect(refreshed.thumbnailImageUrl).toContain("images.unsplash.com/");
+    expect(refreshed.mainImageUrl).toContain("images.unsplash.com/");
+    expect(refreshed.metadata).toEqual(
+      expect.objectContaining({
+        assetSource: expect.objectContaining({
+          provider: "unsplash",
+          licenseLabel: "Unsplash License",
+        }),
+      })
     );
   });
 

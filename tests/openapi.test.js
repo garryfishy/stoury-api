@@ -321,7 +321,7 @@ describe("OpenAPI document", () => {
     expect(document.paths["/api/admin/attractions/enrichment-pending"].get.responses[503]).toBeDefined();
     expect(
       document.paths["/api/admin/attractions/backfill-photos"].post.requestBody.description
-    ).toContain("missing image columns");
+    ).toContain("missing or replaceable image values");
     expect(
       document.components.schemas.BatchAttractionPhotoBackfillSummary.properties.updatedCount
     ).toEqual(

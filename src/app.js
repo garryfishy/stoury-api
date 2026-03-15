@@ -37,6 +37,7 @@ app.use(
 );
 app.use(helmet(helmetOptions));
 app.use(express.json());
+app.use("/assets", express.static(path.join(__dirname, "public")));
 app.use("/admin/assets", express.static(path.join(__dirname, "public/admin")));
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

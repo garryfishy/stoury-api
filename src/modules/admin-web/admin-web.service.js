@@ -4,7 +4,6 @@ const { getDb, getRequiredModel } = require("../../database/db-context");
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
   DEFAULT_STALE_DAYS,
-  GOOGLE_ENRICHMENT_SOURCE,
 } = require("../admin-attractions/admin-attractions.helpers");
 const {
   getAdminEnrichmentRuntimeStatus,
@@ -97,13 +96,29 @@ const createAdminWebService = ({
             where: {
               destinationId,
               isActive: true,
-              externalSource: GOOGLE_ENRICHMENT_SOURCE,
-              externalPlaceId: {
-                [Op.ne]: null,
-              },
               [Op.or]: [
                 { thumbnailImageUrl: null },
                 { mainImageUrl: null },
+                {
+                  thumbnailImageUrl: {
+                    [Op.iLike]: "%/api/attractions/%/photo%",
+                  },
+                },
+                {
+                  mainImageUrl: {
+                    [Op.iLike]: "%/api/attractions/%/photo%",
+                  },
+                },
+                {
+                  thumbnailImageUrl: {
+                    [Op.iLike]: "%googleapis.com/maps/api/place/photo%",
+                  },
+                },
+                {
+                  mainImageUrl: {
+                    [Op.iLike]: "%googleapis.com/maps/api/place/photo%",
+                  },
+                },
               ],
             },
           }),

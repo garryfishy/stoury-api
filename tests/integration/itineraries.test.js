@@ -148,8 +148,8 @@ describe("itineraries integration", () => {
               }),
             ]),
             tripDayIsOpen: expect.any(Boolean),
-            thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
-            mainImageUrl: expect.stringContaining("/api/attractions/"),
+            thumbnailImageUrl: expect.any(String),
+            mainImageUrl: expect.any(String),
             enrichment: expect.any(Object),
             primaryPreference: expect.objectContaining({
               slug: expect.stringMatching(/^(popular|food|shopping|history)$/),

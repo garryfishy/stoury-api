@@ -112,7 +112,7 @@ const destinations = [
     name: "Batam",
     slug: "batam",
     description:
-      "A compact island city known for quick getaways, waterfront views, seafood, and shopping.",
+      "Batam adalah kota kepulauan yang cocok untuk liburan singkat, dengan perpaduan pemandangan laut, pusat belanja, dan wisata kuliner yang mudah dijangkau dalam satu perjalanan.",
     destination_type: "city",
     country_code: "ID",
     country_name: "Indonesia",
@@ -132,7 +132,7 @@ const destinations = [
     name: "Yogyakarta",
     slug: "yogyakarta",
     description:
-      "A culture-forward destination mixing royal heritage, creative neighborhoods, and easy day trips.",
+      "Yogyakarta adalah destinasi yang kuat dengan nuansa budaya, memadukan warisan keraton, kawasan kreatif, dan pilihan wisata harian yang tetap terasa dekat dan nyaman dijelajahi.",
     destination_type: "region",
     country_code: "ID",
     country_name: "Indonesia",
@@ -152,7 +152,7 @@ const destinations = [
     name: "Bali",
     slug: "bali",
     description:
-      "An island destination for temples, beaches, rice terraces, and a wide range of leisure styles.",
+      "Bali adalah destinasi pulau yang menawarkan kombinasi pura, pantai, sawah terasering, dan berbagai pilihan suasana liburan, dari yang santai hingga yang lebih aktif.",
     destination_type: "region",
     country_code: "ID",
     country_name: "Indonesia",

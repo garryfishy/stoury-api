@@ -1,4 +1,3 @@
-const { Op } = require("sequelize");
 const { createAdminWebService } = require("../src/modules/admin-web/admin-web.service");
 
 describe("admin web service", () => {
@@ -127,10 +126,7 @@ describe("admin web service", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           destinationId: "dest-1",
-          externalSource: "google_places",
-          externalPlaceId: {
-            [Op.ne]: null,
-          },
+          isActive: true,
         }),
       })
     );

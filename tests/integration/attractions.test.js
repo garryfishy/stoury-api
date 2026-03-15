@@ -58,8 +58,8 @@ describe("attractions integration", () => {
         estimatedDurationMinutes: expect.any(Number),
         openingHours: expect.any(Object),
         rating: expect.anything(),
-        thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
-        mainImageUrl: expect.stringContaining("/api/attractions/"),
+        thumbnailImageUrl: expect.any(String),
+        mainImageUrl: expect.any(String),
         primaryPreference: expect.objectContaining({
           slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
           name: expect.stringMatching(/^(Populer|Makanan|Belanja|Sejarah)$/),
@@ -350,11 +350,11 @@ describe("attractions integration", () => {
         id: expect.any(String),
         slug: "tanah-lot",
         shortLocation: expect.any(String),
-        thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
-        mainImageUrl: expect.stringContaining("/api/attractions/"),
+        thumbnailImageUrl: expect.any(String),
+        mainImageUrl: expect.any(String),
         photos: expect.arrayContaining([
           expect.objectContaining({
-            url: expect.stringContaining("/api/attractions/"),
+            url: expect.any(String),
             type: expect.stringMatching(/^(main|thumbnail)$/),
           }),
         ]),
@@ -394,6 +394,15 @@ describe("attractions integration", () => {
 
   test("GET /api/attractions/:idOrSlug/photo streams a Google photo when a confident match is found", async () => {
     const targetAttraction = seedData.attractions["tanah-lot"];
+    const originalImages = {
+      thumbnailImageUrl: targetAttraction.thumbnailImageUrl,
+      mainImageUrl: targetAttraction.mainImageUrl,
+    };
+
+    await targetAttraction.update({
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    });
 
     jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([
       {
@@ -437,11 +446,22 @@ describe("attractions integration", () => {
       photoReference: "photo-ref-1",
       maxWidth: 640,
     });
+
+    await targetAttraction.update(originalImages);
   });
 
   test("GET /api/attractions/:idOrSlug/photo falls back to the destination hero image when no match exists", async () => {
     const targetAttraction = seedData.attractions["tanah-lot"];
     const destination = seedData.destinations.bali;
+    const originalImages = {
+      thumbnailImageUrl: targetAttraction.thumbnailImageUrl,
+      mainImageUrl: targetAttraction.mainImageUrl,
+    };
+
+    await targetAttraction.update({
+      thumbnailImageUrl: null,
+      mainImageUrl: null,
+    });
 
     jest.spyOn(googlePlacesClient, "textSearch").mockResolvedValueOnce([]);
 
@@ -451,5 +471,7 @@ describe("attractions integration", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe(destination.heroImageUrl);
+
+    await targetAttraction.update(originalImages);
   });
 });

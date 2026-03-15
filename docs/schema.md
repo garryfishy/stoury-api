@@ -43,7 +43,7 @@ erDiagram
 - `user_preference_categories`: current profile preference selections per user.
 - `trip_preference_categories`: trip-owned preference snapshots copied at trip creation.
 - `destinations`: curated city/region destinations with hero image support and flexible location columns.
-- `attractions`: curated attractions with geolocation, duration, opening-hours JSON, image fields, provider enrichment fields, and enrichment workflow state.
+- `attractions`: curated attractions with geolocation, duration, opening-hours JSON, final public image fields, provider enrichment fields, and enrichment workflow state.
 - `attraction_categories`: seed-owned attraction taxonomy separate from preference categories.
 - `attraction_category_mappings`: many-to-many join between attractions and attraction categories.
 - `trips`: core trip record with destination, planning mode, date range, and budget.
@@ -61,6 +61,7 @@ erDiagram
 - Attraction numeric fields are range-checked.
 - Attraction enrichment status is restricted to `pending`, `enriched`, `needs_review`, or `failed`.
 - Attraction provider records are unique by `(external_source, external_place_id)` when both values are present.
+- Owned attraction asset provenance for v1 lives in `attractions.metadata.assetSource`; no separate gallery/source table exists yet.
 - Itinerary day numbers must be positive and within the trip date range.
 - Itinerary days are forced to stay sequential starting at `1` by a deferred constraint trigger.
 - Itinerary items are unique per `(trip_id, attraction_id)`, preventing the same attraction from appearing twice in one trip.

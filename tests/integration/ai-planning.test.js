@@ -133,8 +133,8 @@ describe("ai planning integration", () => {
               openingHours: expect.any(Object),
               tripDayOpeningHours: expect.any(Array),
               tripDayIsOpen: expect.any(Boolean),
-              thumbnailImageUrl: expect.stringContaining("/api/attractions/"),
-              mainImageUrl: expect.stringContaining("/api/attractions/"),
+              thumbnailImageUrl: expect.any(String),
+              mainImageUrl: expect.any(String),
               enrichment: expect.any(Object),
               primaryPreference: expect.objectContaining({
                 slug: expect.stringMatching(/^(popular|food|shopping|history)$/),
