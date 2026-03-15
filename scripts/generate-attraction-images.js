@@ -86,6 +86,8 @@ const WIKIMEDIA_API_URL = "https://commons.wikimedia.org/w/api.php";
 const ASSET_PROVIDER = "wikimedia_commons";
 const ASSET_STRATEGY = "commons_search_v1";
 const ASSET_BASE_PATH = "/assets/attractions";
+const DEFAULT_WIKIMEDIA_USER_AGENT = "StouryAssetBot/1.0 (https://stoury-api.oceandigital.id; contact: ops@oceandigital.id)";
+const REQUEST_DELAY_MS = 1000;
 
 const getPublicBaseUrl = () =>
   String(options.baseUrl || env.OPENAPI_SERVER_URL || `http://localhost:${env.PORT}`).replace(
@@ -106,6 +108,8 @@ const stripHtml = (value) =>
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const buildAssetRelativePath = (destinationSlug, attractionSlug, variant, extension) =>
   path.join(
@@ -199,6 +203,7 @@ const fetchJson = async (url, params) => {
   const response = await fetch(requestUrl, {
     headers: {
       Accept: "application/json",
+      "User-Agent": process.env.WIKIMEDIA_USER_AGENT || DEFAULT_WIKIMEDIA_USER_AGENT,
     },
   });
 
@@ -292,6 +297,7 @@ const downloadImage = async (imageUrl) => {
   const response = await fetch(imageUrl, {
     headers: {
       Accept: "image/*",
+      "User-Agent": process.env.WIKIMEDIA_USER_AGENT || DEFAULT_WIKIMEDIA_USER_AGENT,
     },
   });
 
@@ -496,6 +502,8 @@ const main = async () => {
         results.push(item);
         console.log(`ERR  ${destinationSlug} / ${attractionSlug}: ${item.error}`);
       }
+
+      await sleep(REQUEST_DELAY_MS);
     }
 
     await fs.mkdir(path.dirname(options.manifestPath), { recursive: true });
