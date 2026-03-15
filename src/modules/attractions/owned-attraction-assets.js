@@ -1,5 +1,11 @@
 const { readRecordValue } = require("../../utils/model-helpers");
 const {
+  isGeneratedAttractionPhotoUrl,
+  isGooglePhotoUrl,
+  isPdfAssetUrl,
+  isSvgAssetUrl,
+} = require("../../utils/attraction-image-urls");
+const {
   additionalAttractions,
 } = require("../../database/seeders/data/additional-attractions");
 
@@ -35,16 +41,12 @@ const MANAGED_ASSET_POOL = additionalAttractions.map(normalizeManagedAssetEntry)
   (entry) => entry.thumbnailImageUrl && entry.mainImageUrl
 );
 
-const isGeneratedPhotoUrl = (value) =>
-  /\/api\/attractions\/[^/]+\/photo\?variant=(thumbnail|main)/.test(String(value || ""));
-
-const isGooglePhotoUrl = (value) =>
-  /googleapis\.com\/maps\/api\/place\/photo|googleusercontent\.com/i.test(
-    String(value || "")
-  );
-
 const isReplaceableAssetUrl = (value) =>
-  !value || isGeneratedPhotoUrl(value) || isGooglePhotoUrl(value);
+  !value ||
+  isGeneratedAttractionPhotoUrl(value) ||
+  isGooglePhotoUrl(value) ||
+  isSvgAssetUrl(value) ||
+  isPdfAssetUrl(value);
 
 const shouldBackfillOwnedAsset = (record, { force = false } = {}) => {
   if (force) {
@@ -124,7 +126,6 @@ module.exports = {
   OWNED_ATTRACTION_ASSET_LICENSE_URL,
   OWNED_ATTRACTION_ASSET_PROVIDER,
   buildOwnedAssetValues,
-  isGeneratedPhotoUrl,
   isGooglePhotoUrl,
   isReplaceableAssetUrl,
   shouldBackfillOwnedAsset,

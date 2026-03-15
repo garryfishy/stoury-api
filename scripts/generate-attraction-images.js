@@ -99,6 +99,8 @@ const ASSET_STRATEGY = "commons_search_v1";
 const ASSET_BASE_PATH = "/assets/attractions";
 const DEFAULT_WIKIMEDIA_USER_AGENT = "StouryAssetBot/1.0 (https://stoury-api.oceandigital.id; contact: ops@oceandigital.id)";
 const REQUEST_DELAY_MS = 1000;
+const SUPPORTED_WIKIMEDIA_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const SUPPORTED_WIKIMEDIA_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 const getPublicBaseUrl = () =>
   String(options.baseUrl || env.OPENAPI_SERVER_URL || `http://localhost:${env.PORT}`).replace(
@@ -261,6 +263,18 @@ const inferExtension = ({ mimeType, directImageUrl }) => {
   return extension || "jpg";
 };
 
+const isSupportedWikimediaAsset = ({ mimeType, directImageUrl }) => {
+  const normalizedMimeType = String(mimeType || "").trim().toLowerCase();
+
+  if (normalizedMimeType && !SUPPORTED_WIKIMEDIA_MIME_TYPES.has(normalizedMimeType)) {
+    return false;
+  }
+
+  const extension = inferExtension({ mimeType, directImageUrl });
+
+  return SUPPORTED_WIKIMEDIA_EXTENSIONS.has(String(extension || "").toLowerCase());
+};
+
 const fetchJson = async (url, params) => {
   const requestUrl = new URL(url);
 
@@ -373,6 +387,15 @@ const downloadImage = async (imageUrl) => {
 
   if (!response.ok) {
     throw new Error(`Image download failed with HTTP ${response.status}`);
+  }
+
+  const contentType = String(response.headers.get("content-type") || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+
+  if (contentType && !SUPPORTED_WIKIMEDIA_MIME_TYPES.has(contentType)) {
+    throw new Error(`Unsupported downloaded asset content type: ${contentType}`);
   }
 
   return Buffer.from(await response.arrayBuffer());
@@ -529,6 +552,13 @@ const main = async () => {
           item.error = "Found file title but could not resolve direct image URL";
           results.push(item);
           console.log(`MISS ${destinationSlug} / ${attractionSlug}: no direct image`);
+          continue;
+        }
+
+        if (!isSupportedWikimediaAsset(fileInfo)) {
+          item.error = `Unsupported Wikimedia file type: ${fileInfo.mimeType || inferExtension(fileInfo)}`;
+          results.push(item);
+          console.log(`MISS ${destinationSlug} / ${attractionSlug}: unsupported file type`);
           continue;
         }
 

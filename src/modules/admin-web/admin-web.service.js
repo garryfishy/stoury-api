@@ -157,6 +157,26 @@ const createAdminWebService = ({
                     [Op.iLike]: "%googleapis.com/maps/api/place/photo%",
                   },
                 },
+                {
+                  thumbnailImageUrl: {
+                    [Op.iLike]: "%.pdf%",
+                  },
+                },
+                {
+                  mainImageUrl: {
+                    [Op.iLike]: "%.pdf%",
+                  },
+                },
+                {
+                  thumbnailImageUrl: {
+                    [Op.iLike]: "%.svg%",
+                  },
+                },
+                {
+                  mainImageUrl: {
+                    [Op.iLike]: "%.svg%",
+                  },
+                },
               ],
             },
           }),

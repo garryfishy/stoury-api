@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const env = require("../../config/env");
+const { isPdfAssetUrl } = require("../../utils/attraction-image-urls");
 const { readRecordValue } = require("../../utils/model-helpers");
 const { normalizeOpeningHours } = require("../../utils/opening-hours");
 const { serializeDestination } = require("../destinations/destinations.helpers");
@@ -41,7 +42,11 @@ const resolveAttractionImageUrl = (
       ? readRecordValue(record, ["thumbnailImageUrl"], null)
       : readRecordValue(record, ["mainImageUrl"], null);
 
-  return storedUrl || buildAttractionPhotoUrl(record, variant);
+  if (storedUrl && !isPdfAssetUrl(storedUrl)) {
+    return storedUrl;
+  }
+
+  return buildAttractionPhotoUrl(record, variant);
 };
 
 const deriveShortLocation = (record, destination) => {

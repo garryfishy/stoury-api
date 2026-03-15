@@ -1,6 +1,12 @@
 const fs = require("fs/promises");
 const path = require("path");
 const env = require("../../config/env");
+const {
+  isGeneratedAttractionPhotoUrl,
+  isGooglePhotoUrl,
+  isPdfAssetUrl,
+  isSvgAssetUrl,
+} = require("../../utils/attraction-image-urls");
 const { readRecordValue } = require("../../utils/model-helpers");
 
 const UPLOAD_PROVIDER = "stoury_upload";
@@ -20,14 +26,6 @@ const slugify = (value) =>
 const resolvePublicBaseUrl = (baseUrl) =>
   String(baseUrl || env.OPENAPI_SERVER_URL || `http://localhost:${env.PORT}`).replace(/\/$/, "");
 
-const isGeneratedPhotoEndpointUrl = (value) =>
-  /\/api\/attractions\/[^/]+\/photo\?variant=(thumbnail|main)/.test(String(value || ""));
-
-const isGooglePhotoUrl = (value) =>
-  /googleapis\.com\/maps\/api\/place\/photo|googleusercontent\.com/i.test(String(value || ""));
-
-const isSvgImageUrl = (value) => /\.svg(?:\?|$)/i.test(String(value || ""));
-
 const hasUsableAttractionImage = (record) => {
   const urls = [
     readRecordValue(record, ["mainImageUrl"], null),
@@ -36,7 +34,10 @@ const hasUsableAttractionImage = (record) => {
 
   return urls.some(
     (url) =>
-      !isGeneratedPhotoEndpointUrl(url) && !isGooglePhotoUrl(url) && !isSvgImageUrl(url)
+      !isGeneratedAttractionPhotoUrl(url) &&
+      !isGooglePhotoUrl(url) &&
+      !isSvgAssetUrl(url) &&
+      !isPdfAssetUrl(url)
   );
 };
 
