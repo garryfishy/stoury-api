@@ -22,6 +22,8 @@
     "db:seed:admin": "node scripts/seed-admin-user.js",
     "assets:backfill": "node scripts/backfill-owned-attraction-assets.js",
     "assets:backfill:test": "node scripts/backfill-owned-attraction-assets.js --env test",
+    "assets:wikimedia": "node scripts/generate-attraction-images.js",
+    "assets:wikimedia:test": "node scripts/generate-attraction-images.js --env test",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "db:reset": "sequelize-cli db:migrate:undo:all && sequelize-cli db:migrate && sequelize-cli db:seed:all",
     "db:status": "sequelize-cli db:migrate:status",
